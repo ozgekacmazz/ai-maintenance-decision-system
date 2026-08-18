@@ -19,6 +19,17 @@ def env_list(name: str, default: str = "") -> list[str]:
     ]
 
 
+def env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{name} tam sayı olmalıdır.") from exc
+    if str(value) != raw.strip() or not minimum <= value <= maximum:
+        raise RuntimeError(f"{name} {minimum} ile {maximum} arasında olmalıdır.")
+    return value
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("DJANGO_SECRET_KEY ortam degiskeni tanimlanmalidir.")
@@ -66,6 +77,7 @@ FAILURE_TYPE_MODEL_METADATA_PATH = Path(
         REPO_ROOT / "data" / "metadata" / "failure_type_model.json",
     )
 )
+SHAP_TOP_N = env_int("SHAP_TOP_N", 3, minimum=1, maximum=5)
 
 MIDDLEWARE = [
     "apps.core.middleware.TraceIdMiddleware",

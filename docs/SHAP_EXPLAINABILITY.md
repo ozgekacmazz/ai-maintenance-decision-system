@@ -76,21 +76,24 @@ Bütün sayılar finite `[JSON number]` değerleridir. Açıklama input'u mutate
 
 ## Failure-type politikası
 
-HDF/PWF/OSF ve TWF teknik olarak açıklanabilir. TWF düşük support ve zayıf test
-performansı nedeniyle açıklamada `guven_durumu=YETERSIZ_DESTEK` ve
-`operasyonel_kullanima_uygun=false` taşır. Bu ML açıklama politikası Sprint 12
-backend serving politikasıyla aynı anlamdadır; Sprint 14 entegrasyonunda tek
-response eşlemesi korunmalıdır. RNF için öğrenilmiş pipeline yoktur ve açıklama
-talebi reddedilir.
+HDF/PWF/OSF ve TWF teknik olarak açıklanabilir. ML katmanı yalnız matematiksel katkıyı
+üretir; operasyonel güven kararı vermez. TWF için `YETERSIZ_DESTEK` ve
+`operasyonel_kullanima_uygun=false` alanlarının tek kaynağı backend serving policy'dir.
+RNF için öğrenilmiş pipeline yoktur ve açıklama talebi reddedilir.
 
-TWF güven semantiği bugün ML açıklama katmanında ve backend serving policy içinde
-ayrı ayrı gösterilmektedir. Sprint 14 API entegrasyonu bunu tek paylaşılan sözleşmeye
-bağlamalı veya metadata üzerinden doğrulamalıdır; değerlerin sessizce farklılaşmasına
-izin verilmemelidir.
+Bu sorumluluk ayrımı TWF güven semantiğinin ML ile backend arasında sessizce
+farklılaşmasını engeller.
 
 HDF/PWF/OSF açıklamalarının varlığı saha doğruluğu anlamına gelmez. AI4I sentetik
 veridir; gerçek saha, temporal genelleme veya gerçek mekanik nedensellik kanıtı
 sunmaz.
+
+Sprint 14 itibarıyla ML katmanı TWF'ye operasyonel güven alanı eklemez; yalnız
+matematiksel katkı üretir. `YETERSIZ_DESTEK` ve operasyonel uygunluk kararının tek
+kaynağı backend serving policy'dir. Prepared-feature alt seviye API'si aynı request
+içindeki inference frame'ini tekrar feature engineering yapmadan açıklar. Backend
+cache'i gerçek pipeline nesnesine bağlı, thread-safe ve process-local'dir; çok
+worker'da her worker kendi cache'ini ısıtır.
 
 ## Global rapor ve determinizm
 

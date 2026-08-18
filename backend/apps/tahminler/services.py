@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import sklearn
 from bakim_ml.artifact import load_trusted_artifact, load_trusted_failure_type_artifact
 from bakim_ml.data_contract import (
     MODEL_FEATURE_COLUMNS,
@@ -16,6 +17,11 @@ from bakim_ml.modeling import feature_frame
 from django.conf import settings
 
 from apps.tahminler.exceptions import ModelHizmetiHatasi
+from apps.tahminler.explainability import (
+    aciklama_uret,
+    ariza_tipi_explainer_cache_sifirla,
+    binary_explainer_cache_sifirla,
+)
 from apps.tahminler.policy import (
     DENEYSEL_FIZIKSEL_TIPLER,
     GUVENILIR_FIZIKSEL_TIPLER,
@@ -58,6 +64,7 @@ def binary_model_cache_sifirla():
     with _binary_cache_lock:
         _cached_model = None
         _cached_paths = None
+    binary_explainer_cache_sifirla()
 
 
 def ariza_tipi_model_cache_sifirla():
@@ -65,6 +72,7 @@ def ariza_tipi_model_cache_sifirla():
     with _failure_type_cache_lock:
         _cached_failure_type_model = None
         _cached_failure_type_paths = None
+    ariza_tipi_explainer_cache_sifirla()
 
 
 def _json_oku(path):
@@ -95,6 +103,15 @@ def _gecerli_olasilik(value):
     )
 
 
+def _runtime_surumu_dogrula(metadata):
+    runtime = metadata.get("runtime")
+    if not isinstance(runtime, dict):
+        raise ValueError("Runtime metadata sözleşmesi geçersiz")
+    training_version = runtime.get("scikit_learn")
+    if not isinstance(training_version, str) or training_version != sklearn.__version__:
+        raise ValueError("Scikit-learn runtime sürümü uyumsuz")
+
+
 def _metadata_oku(path):
     metadata = _json_oku(path)
     try:
@@ -104,9 +121,11 @@ def _metadata_oku(path):
             "feature_columns",
             "threshold",
             "artifact",
+            "runtime",
         }
         if not required <= metadata.keys():
             raise ValueError("Eksik metadata")
+        _runtime_surumu_dogrula(metadata)
         valid = (
             metadata["model_version"] == MODEL_VERSION
             and metadata["pipeline_version"] == PIPELINE_VERSION
@@ -132,9 +151,11 @@ def _ariza_tipi_metadata_oku(path):
             "thresholds",
             "selected_candidate",
             "artifact",
+            "runtime",
         }
         if not required <= metadata.keys():
             raise ValueError("Eksik metadata")
+        _runtime_surumu_dogrula(metadata)
         targets = tuple(metadata["target_labels"])
         thresholds = metadata["thresholds"]
         valid = (
@@ -248,6 +269,7 @@ def modeli_getir(*, artifact_path=None, metadata_path=None):
         if _cached_model is None or _cached_paths != paths:
             loaded = _model_yukle(*paths)
             _cached_model, _cached_paths = loaded, paths
+            binary_explainer_cache_sifirla()
     return _cached_model
 
 
@@ -263,6 +285,7 @@ def ariza_tipi_modeli_getir(*, artifact_path=None, metadata_path=None):
         if _cached_failure_type_model is None or _cached_failure_type_paths != paths:
             loaded = _ariza_tipi_model_yukle(*paths)
             _cached_failure_type_model, _cached_failure_type_paths = loaded, paths
+            ariza_tipi_explainer_cache_sifirla()
     return _cached_failure_type_model
 
 
@@ -336,7 +359,8 @@ def hiyerarsik_risk_tahmini_yap(
 ):
     try:
         features = _ozellikleri_hazirla(sensor_verisi)
-        result = _binary_risk_hesapla(features, binary_model or modeli_getir())
+        binary_snapshot = binary_model or modeli_getir()
+        result = _binary_risk_hesapla(features, binary_snapshot)
         if not result["risk_uyarisi"]:
             result["ariza_tipi_degerlendirmesi"] = {
                 "durum": "RISK_ESIK_ALTINDA",
@@ -344,10 +368,45 @@ def hiyerarsik_risk_tahmini_yap(
                 "deneysel_sinyaller": [],
                 "belirsiz_fiziksel_tip": False,
             }
+            result["aciklanabilirlik"] = {
+                "durum": "RISK_ESIK_ALTINDA",
+                "risk_aciklamasi": None,
+            }
             return result
-        result["ariza_tipi_degerlendirmesi"] = _ariza_tipi_degerlendir(
-            features, failure_type_model or ariza_tipi_modeli_getir()
-        )
+        failure_snapshot = failure_type_model or ariza_tipi_modeli_getir()
+        evaluation = _ariza_tipi_degerlendir(features, failure_snapshot)
+        result["aciklanabilirlik"] = {
+            "durum": "ACIKLANDI",
+            "risk_aciklamasi": aciklama_uret(
+                binary_snapshot.pipeline,
+                features,
+                target="machine_failure",
+                probability=result["risk_orani"],
+                top_n=settings.SHAP_TOP_N,
+            ),
+        }
+        for candidate in evaluation["guvenilir_adaylar"]:
+            label = candidate["kod"]
+            candidate["aciklama"] = aciklama_uret(
+                failure_snapshot.pipelines[label],
+                features,
+                target=label,
+                probability=candidate["olasilik"],
+                top_n=settings.SHAP_TOP_N,
+                label=label,
+            )
+        for signal in evaluation["deneysel_sinyaller"]:
+            label = signal["kod"]
+            if signal["esik_asildi"]:
+                signal["aciklama"] = aciklama_uret(
+                    failure_snapshot.pipelines[label],
+                    features,
+                    target=label,
+                    probability=signal["olasilik"],
+                    top_n=settings.SHAP_TOP_N,
+                    label=label,
+                )
+        result["ariza_tipi_degerlendirmesi"] = evaluation
         return result
     except ModelHizmetiHatasi:
         raise

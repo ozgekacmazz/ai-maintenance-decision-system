@@ -13,12 +13,6 @@ from .modeling import feature_frame
 DIRECTION_TOLERANCE = 1e-12
 ADDITIVITY_ABSOLUTE_TOLERANCE = 1e-6
 ADDITIVITY_RELATIVE_TOLERANCE = 1e-6
-FAILURE_TYPE_EXPLANATION_POLICY = {
-    "TWF": {
-        "guven_durumu": "YETERSIZ_DESTEK",
-        "operasyonel_kullanima_uygun": False,
-    }
-}
 
 
 class ExplainabilityError(Exception):
@@ -174,13 +168,38 @@ def _direction(value):
     return "NOTR"
 
 
-def _explain_pipeline(pipeline, canonical_sensor_input, target, *, top_n):
-    features = _prepare_single_input(canonical_sensor_input)
+def create_tree_explainer(pipeline):
+    _, estimator = _pipeline_parts(pipeline)
+    try:
+        return shap.TreeExplainer(estimator)
+    except Exception as exc:
+        raise ExplainabilityError("SHAP açıklayıcısı oluşturulamadı.") from exc
+
+
+def explain_prepared_pipeline(
+    pipeline,
+    prepared_features,
+    *,
+    explainer,
+    target,
+    top_n,
+    predicted_probability=None,
+):
+    if not isinstance(prepared_features, pd.DataFrame) or len(prepared_features) != 1:
+        raise ExplainabilityError("Hazırlanmış feature girdisi geçersiz.")
+    features = prepared_features.copy(deep=True)
     if tuple(features.columns) != MODEL_FEATURE_COLUMNS:
         raise ExplainabilityError("Model feature sözleşmesi geçersiz.")
     preprocessor, estimator = _pipeline_parts(pipeline)
     positive_index = positive_class_index(estimator.classes_)
-    probability = _predict_positive_probability(pipeline, features, positive_index)
+    if predicted_probability is None:
+        probability = _predict_positive_probability(pipeline, features, positive_index)
+    else:
+        probability = _finite_float(
+            predicted_probability, "Model olasılığı sonlu değil."
+        )
+        if not 0 <= probability <= 1:
+            raise ExplainabilityError("Model olasılığı geçersiz.")
     try:
         transformed = np.asarray(preprocessor.transform(features), dtype=float)
         feature_names = tuple(
@@ -197,7 +216,7 @@ def _explain_pipeline(pipeline, canonical_sensor_input, target, *, top_n):
     _validate_top_n(top_n, len(feature_names))
 
     try:
-        explanation = shap.TreeExplainer(estimator)(transformed, check_additivity=False)
+        explanation = explainer(transformed, check_additivity=False)
     except Exception as exc:
         raise ExplainabilityError("SHAP açıklaması üretilemedi.") from exc
     normalized = normalize_positive_class_shap_values(
@@ -236,6 +255,16 @@ def _explain_pipeline(pipeline, canonical_sensor_input, target, *, top_n):
     }
 
 
+def _explain_pipeline(pipeline, canonical_sensor_input, target, *, top_n):
+    return explain_prepared_pipeline(
+        pipeline,
+        _prepare_single_input(canonical_sensor_input),
+        explainer=create_tree_explainer(pipeline),
+        target=target,
+        top_n=top_n,
+    )
+
+
 def explain_binary_prediction(artifact, canonical_sensor_input, *, top_n=5):
     try:
         pipeline = artifact["pipeline"]
@@ -261,8 +290,6 @@ def explain_failure_type_prediction(
         raise ExplainabilityError("Arıza tipi artefakt sözleşmesi geçersiz.") from exc
     if tuple(metadata.get("target_labels", ())) != MODELED_FAILURE_TYPE_COLUMNS:
         raise ExplainabilityError("Arıza tipi hedef sözleşmesi geçersiz.")
-    result = _explain_pipeline(
+    return _explain_pipeline(
         pipelines[label], canonical_sensor_input, label, top_n=top_n
     )
-    result.update(FAILURE_TYPE_EXPLANATION_POLICY.get(label, {}))
-    return result

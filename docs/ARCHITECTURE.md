@@ -111,3 +111,12 @@ HDF/PWF/OSF operasyonel aday, TWF deneysel sinyal, RNF model dışıdır. Güven
 aday bulunmazsa sonuç belirsiz fiziksel tip olarak işaretlenir. Riskli istekte
 ikinci model kullanılamıyorsa kısmi başarı yerine standart `503` döner. Ayrıntılı
 akış, sınırlamalar ve F12 listesi [hiyerarşik tahmin belgesindedir](HIERARCHICAL_PREDICTION_FLOW.md).
+
+## 13. Sprint 14 açıklama entegrasyonu
+
+Risk gating sonrasında aynı prepared feature frame ve aynı model snapshot'ı
+kullanılarak SHAP açıklamaları atomik response'a eklenir. Model nesnesine bağlı
+binary ve label-bazlı explainer cache'leri process-local, ayrı ve thread-safe'dir.
+TWF operasyonel güven semantiğinin tek kaynağı backend serving policy'dir; ML
+katmanı yalnız matematiksel katkı üretir. Ayrıntılar
+[entegrasyon belgesindedir](SHAP_API_INTEGRATION.md).

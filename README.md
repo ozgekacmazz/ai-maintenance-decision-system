@@ -38,6 +38,9 @@ PDF'deki FastAPI, Streamlit, AI4I, Random Forest, 0.60 eşik değeri ve örnek m
 - Accuracy model seçiminde veya değerlendirmesinde kullanılmaz.
 - Precision, recall, F1, PR-AUC, confusion matrix, false positive ve false negative değerlendirilir.
 - Model joblib ile `.joblib` artefaktına kaydedilir ve uygulama çalışırken yeniden eğitilmez.
+- Mevcut joblib modelleri scikit-learn `1.8.0` ile üretilmiştir; eğitim ve serving
+  aynı exact sürüme sabitlenir. Sürüm yükseltmesi eski joblib ile yapılmaz: modeller
+  güvenilir veriyle yeniden eğitilir, test edilir ve yeni checksum/sürümle yayımlanır.
 
 ## Belgeler
 
@@ -45,6 +48,7 @@ PDF'deki FastAPI, Streamlit, AI4I, Random Forest, 0.60 eşik değeri ve örnek m
 - [Mimari](docs/ARCHITECTURE.md)
 - [Hiyerarşik tahmin akışı](docs/HIERARCHICAL_PREDICTION_FLOW.md)
 - [SHAP açıklanabilirlik altyapısı](docs/SHAP_EXPLAINABILITY.md)
+- [SHAP API entegrasyonu](docs/SHAP_API_INTEGRATION.md)
 - [Veri ve ML planı](docs/DATA_AND_ML_PLAN.md)
 - [Güvenlik planı](docs/SECURITY_PLAN.md)
 - [Hata sözleşmesi](docs/ERROR_CONTRACT.md)

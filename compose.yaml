@@ -28,6 +28,7 @@ services:
       MODEL_METADATA_PATH: ${MODEL_METADATA_PATH:-/data/metadata/binary_failure_model.json}
       FAILURE_TYPE_MODEL_ARTIFACT_PATH: ${FAILURE_TYPE_MODEL_ARTIFACT_PATH:-/opt/ml/artifacts/failure-type-1.0.0.joblib}
       FAILURE_TYPE_MODEL_METADATA_PATH: ${FAILURE_TYPE_MODEL_METADATA_PATH:-/data/metadata/failure_type_model.json}
+      SHAP_TOP_N: ${SHAP_TOP_N:-3}
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app

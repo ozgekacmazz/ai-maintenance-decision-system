@@ -1,7 +1,10 @@
+import json
 from unittest.mock import patch
 
 import numpy as np
 import pytest
+from bakim_ml.data_contract import MODEL_FEATURE_COLUMNS
+from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.kullanicilar.models import Kullanici
@@ -30,6 +33,15 @@ RESULT = {
         "guvenilir_adaylar": [],
         "deneysel_sinyaller": [],
         "belirsiz_fiziksel_tip": True,
+    },
+    "aciklanabilirlik": {
+        "durum": "ACIKLANDI",
+        "risk_aciklamasi": {
+            "target": "machine_failure",
+            "output_space": "probability",
+            "base_value": 0.1,
+            "ilk_etkiler": [],
+        },
     },
 }
 
@@ -177,3 +189,70 @@ def test_high_risk_missing_failure_type_model_is_safe_503(client):
     assert response.status_code == 503
     assert response.data["hata"]["kod"] == "MODEL_HIZMETI_KULLANILAMIYOR"
     assert response.data["hata"]["trace_id"] == response["X-Trace-ID"]
+
+
+def test_high_risk_explanation_failure_is_safe_503(client):
+    from apps.tahminler.services import YukluArizaTipiModeli
+
+    authenticated(client)
+    binary = YukluModel(BinaryPipeline(0.9), 0.6, MODEL_VERSION, "1.0.0")
+    failure = YukluArizaTipiModeli(
+        {label: BinaryPipeline(0.9) for label in ("TWF", "HDF", "PWF", "OSF")},
+        {label: 0.2 for label in ("TWF", "HDF", "PWF", "OSF")},
+        "failure-type-1.0.0",
+        "1.0.0",
+    )
+    with (
+        patch("apps.tahminler.services.modeli_getir", return_value=binary),
+        patch("apps.tahminler.services.ariza_tipi_modeli_getir", return_value=failure),
+        patch(
+            "apps.tahminler.services.aciklama_uret",
+            side_effect=ModelHizmetiHatasi(),
+        ),
+    ):
+        response = client.post(
+            URL, VALID, format="json", HTTP_X_TRACE_ID="shap-error-trace"
+        )
+    assert response.status_code == 503
+    assert response.data["hata"]["kod"] == "MODEL_HIZMETI_KULLANILAMIYOR"
+    assert response.data["hata"]["trace_id"] == response["X-Trace-ID"]
+
+
+def test_runtime_version_mismatch_is_safe_503_before_deserialization(
+    client, tmp_path, monkeypatch
+):
+    import apps.tahminler.services as services
+
+    authenticated(client)
+    metadata = {
+        "model_version": MODEL_VERSION,
+        "pipeline_version": "1.0.0",
+        "feature_columns": list(MODEL_FEATURE_COLUMNS),
+        "threshold": 0.6,
+        "artifact": {"sha256": "0" * 64},
+        "runtime": {"scikit_learn": "1.8.0"},
+    }
+    metadata_path = tmp_path / "metadata.json"
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+    monkeypatch.setattr(services.sklearn, "__version__", "1.9.0")
+    services.binary_model_cache_sifirla()
+    with (
+        override_settings(
+            MODEL_ARTIFACT_PATH=tmp_path / "missing.joblib",
+            MODEL_METADATA_PATH=metadata_path,
+        ),
+        patch("apps.tahminler.services.load_trusted_artifact") as trusted_loader,
+    ):
+        response = client.post(
+            URL,
+            VALID,
+            format="json",
+            HTTP_X_TRACE_ID="runtime-version-trace",
+        )
+    services.binary_model_cache_sifirla()
+    assert response.status_code == 503
+    assert response.data["hata"]["kod"] == "MODEL_HIZMETI_KULLANILAMIYOR"
+    assert response.data["hata"]["trace_id"] == response["X-Trace-ID"]
+    trusted_loader.assert_not_called()
+    serialized = str(response.data)
+    assert "1.8.0" not in serialized and "1.9.0" not in serialized

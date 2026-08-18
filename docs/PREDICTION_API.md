@@ -112,6 +112,15 @@ gelmez.
 karşılaştırmasıdır. Yanıt artefakt yolu veya checksum içermez ve her yanıtta
 `X-Trace-ID` header'ı bulunur.
 
+## Sprint 14 açıklanabilirlik alanları
+
+Düşük risk yanıtında `aciklanabilirlik.durum=RISK_ESIK_ALTINDA` ve
+`risk_aciklamasi=null` olur. Riskli yanıtta durum `ACIKLANDI` olur ve binary
+`risk_aciklamasi` ilk üç etkiyi taşır. Threshold aşan güvenilir aday ile threshold
+aşan deneysel TWF öğesine kendi `aciklama` alanı eklenir; aşmayan tipler açıklanmaz.
+Mevcut üst seviye alanlar silinmez. Alanlar, cache ve F12 kontrolleri
+[SHAP API entegrasyon belgesinde](SHAP_API_INTEGRATION.md) açıklanır.
+
 ## Hatalar
 
 - Geçersiz alan: `400 GECERSIZ_ISTEK`

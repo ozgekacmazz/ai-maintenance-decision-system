@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import shap
+import sklearn
 from sklearn.ensemble import RandomForestClassifier
 
 from bakim_ml.artifact import load_trusted_artifact, load_trusted_failure_type_artifact
@@ -242,15 +243,17 @@ def test_broken_additivity_is_rejected(monkeypatch):
         _explain_pipeline(FakePipeline(), sensor(), "machine_failure", top_n=3)
 
 
-def test_failure_type_target_and_twf_policy(monkeypatch):
+def test_failure_type_explanation_is_mathematical_and_has_no_serving_policy(
+    monkeypatch,
+):
     monkeypatch.setattr(shap, "TreeExplainer", FakeExplainer)
     artifact = {
         "metadata": {"target_labels": list(MODELED_FAILURE_TYPE_COLUMNS)},
         "pipelines": {label: FakePipeline() for label in MODELED_FAILURE_TYPE_COLUMNS},
     }
     twf = explain_failure_type_prediction(artifact, sensor(), "TWF", top_n=2)
-    assert twf["guven_durumu"] == "YETERSIZ_DESTEK"
-    assert twf["operasyonel_kullanima_uygun"] is False
+    assert "guven_durumu" not in twf
+    assert "operasyonel_kullanima_uygun" not in twf
     assert "guven_durumu" not in explain_failure_type_prediction(
         artifact, sensor(), "HDF", top_n=2
     )
@@ -319,6 +322,37 @@ def real_artifacts():
     return binary, failure
 
 
+def test_runtime_sklearn_exactly_matches_both_tracked_metadata_versions():
+    tracked_paths = (
+        REPO_ROOT / "data/metadata/binary_failure_model.json",
+        REPO_ROOT / "data/metadata/failure_type_model.json",
+    )
+    tracked_versions = {
+        json.loads(path.read_text(encoding="utf-8"))["runtime"]["scikit_learn"]
+        for path in tracked_paths
+    }
+    assert tracked_versions == {sklearn.__version__}
+
+
+@pytest.mark.skipif(not ARTIFACTS_AVAILABLE, reason="Yerel artefaktlar mevcut değil.")
+def test_runtime_sklearn_matches_tracked_and_artifact_training_versions(
+    real_artifacts,
+):
+    binary, failure = real_artifacts
+    tracked_versions = {
+        json.loads(path.read_text(encoding="utf-8"))["runtime"]["scikit_learn"]
+        for path in (
+            REPO_ROOT / "data/metadata/binary_failure_model.json",
+            REPO_ROOT / "data/metadata/failure_type_model.json",
+        )
+    }
+    artifact_versions = {
+        artifact["metadata"]["runtime"]["scikit_learn"]
+        for artifact in (binary, failure)
+    }
+    assert tracked_versions == artifact_versions == {sklearn.__version__}
+
+
 @pytest.mark.skipif(not ARTIFACTS_AVAILABLE, reason="Yerel artefaktlar mevcut değil.")
 def test_real_artifacts_explain_positive_classes_with_finite_additivity(real_artifacts):
     binary, failure = real_artifacts
@@ -329,7 +363,7 @@ def test_real_artifacts_explain_positive_classes_with_finite_additivity(real_art
         for label in MODELED_FAILURE_TYPE_COLUMNS
     )
     assert explanations[0]["target"] == "machine_failure"
-    assert explanations[1]["guven_durumu"] == "YETERSIZ_DESTEK"
+    assert "guven_durumu" not in explanations[1]
     for explanation in explanations:
         assert np.isfinite(explanation["predicted_probability"])
         assert np.isfinite(explanation["base_value"])

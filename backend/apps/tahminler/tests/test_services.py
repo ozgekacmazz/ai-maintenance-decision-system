@@ -66,7 +66,19 @@ def failure_type_model(probabilities=None):
 
 
 @pytest.fixture(autouse=True)
-def clean_model_cache():
+def clean_model_cache(monkeypatch):
+    import apps.tahminler.services as services
+
+    monkeypatch.setattr(
+        services,
+        "aciklama_uret",
+        lambda pipeline, features, *, target, **kwargs: {
+            "target": target,
+            "output_space": "probability",
+            "base_value": 0.0,
+            "ilk_etkiler": [],
+        },
+    )
     model_cache_sifirla()
     yield
     model_cache_sifirla()
@@ -91,6 +103,7 @@ def artifact_files(
         "pipeline_version": PIPELINE_VERSION,
         "feature_columns": list(MODEL_FEATURE_COLUMNS),
         "threshold": 0.6,
+        "runtime": {"scikit_learn": "1.8.0"},
     }
     metadata.update(metadata_changes or {})
     artifact_metadata = copy.deepcopy(metadata)
@@ -105,6 +118,105 @@ def artifact_files(
     metadata_path = tmp_path / "metadata.json"
     metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
     return artifact_path, metadata_path
+
+
+def runtime_metadata_document(kind):
+    common = {
+        "model_version": MODEL_VERSION,
+        "pipeline_version": PIPELINE_VERSION,
+        "feature_columns": list(MODEL_FEATURE_COLUMNS),
+        "artifact": {"sha256": "0" * 64},
+        "runtime": {"scikit_learn": "1.8.0"},
+    }
+    if kind == "binary":
+        return {**common, "threshold": 0.6}
+    return {
+        **common,
+        "model_version": FAILURE_TYPE_MODEL_VERSION,
+        "target_labels": ["TWF", "HDF", "PWF", "OSF"],
+        "thresholds": {label: 0.2 for label in ("TWF", "HDF", "PWF", "OSF")},
+        "selected_candidate": "random_forest_none",
+    }
+
+
+@pytest.mark.parametrize(
+    ("kind", "reader_name"),
+    [("binary", "_metadata_oku"), ("failure", "_ariza_tipi_metadata_oku")],
+)
+def test_metadata_accepts_matching_runtime_version(
+    tmp_path, monkeypatch, kind, reader_name
+):
+    import apps.tahminler.services as services
+
+    monkeypatch.setattr(services.sklearn, "__version__", "1.8.0")
+    path = tmp_path / f"{kind}.json"
+    path.write_text(json.dumps(runtime_metadata_document(kind)), encoding="utf-8")
+    assert getattr(services, reader_name)(path)["runtime"]["scikit_learn"] == "1.8.0"
+
+
+@pytest.mark.parametrize(
+    ("runtime_change", "remove_runtime"),
+    [
+        (None, True),
+        ("not-a-dict", False),
+        ({}, False),
+        ({"scikit_learn": 1.8}, False),
+        ({"scikit_learn": True}, False),
+        ({"scikit_learn": "1.8.0"}, False),
+    ],
+)
+@pytest.mark.parametrize(
+    ("kind", "reader_name"),
+    [("binary", "_metadata_oku"), ("failure", "_ariza_tipi_metadata_oku")],
+)
+def test_metadata_rejects_invalid_or_mismatched_runtime_contract(
+    tmp_path,
+    monkeypatch,
+    kind,
+    reader_name,
+    runtime_change,
+    remove_runtime,
+):
+    import apps.tahminler.services as services
+
+    monkeypatch.setattr(services.sklearn, "__version__", "1.9.0")
+    document = runtime_metadata_document(kind)
+    if remove_runtime:
+        document.pop("runtime")
+    else:
+        document["runtime"] = runtime_change
+    path = tmp_path / f"{kind}.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(ModelHizmetiHatasi):
+        getattr(services, reader_name)(path)
+
+
+@pytest.mark.parametrize("kind", ["binary", "failure"])
+def test_runtime_mismatch_is_rejected_before_trusted_artifact_loader(
+    tmp_path, monkeypatch, kind
+):
+    import apps.tahminler.services as services
+
+    monkeypatch.setattr(services.sklearn, "__version__", "1.9.0")
+    document = runtime_metadata_document(kind)
+    metadata_path = tmp_path / f"{kind}.json"
+    metadata_path.write_text(json.dumps(document), encoding="utf-8")
+    trusted_loader = (
+        "load_trusted_artifact"
+        if kind == "binary"
+        else "load_trusted_failure_type_artifact"
+    )
+    forbidden = monkeypatch.setattr(
+        services,
+        trusted_loader,
+        lambda *args, **kwargs: pytest.fail("Trusted loader çağrılmamalı"),
+    )
+    model_loader = (
+        services._model_yukle if kind == "binary" else services._ariza_tipi_model_yukle
+    )
+    with pytest.raises(ModelHizmetiHatasi):
+        model_loader(tmp_path / "missing.joblib", metadata_path)
+    assert forbidden is None
 
 
 def test_valid_artifact_loads_and_cache_loads_once(tmp_path, monkeypatch):
@@ -269,6 +381,12 @@ def test_high_risk_runs_all_four_types_and_applies_policy():
         "esik_asildi": True,
         "guven_durumu": "YETERSIZ_DESTEK",
         "operasyonel_kullanima_uygun": False,
+        "aciklama": {
+            "target": "TWF",
+            "output_space": "probability",
+            "base_value": 0.0,
+            "ilk_etkiler": [],
+        },
     }
     assert "RNF" not in str(result)
     assert result["belirsiz_fiziksel_tip"] is False
