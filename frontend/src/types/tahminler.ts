@@ -101,6 +101,117 @@ export interface SayfalanmisYanit<T> {
   results: T[]
 }
 
+export interface MakineOzet {
+  id: number
+  kod: string
+  ad: string
+  tip?: string
+  kritiklik?: number
+  aktif?: boolean
+}
+
+export interface TahminKaydiYazmaGirdi {
+  makine_id: number
+  olcum_zamani: string
+  kaynak: 'MANUEL' | 'REPLAY' | 'ENTEGRASYON' | string
+  idempotency_key: string
+  sensor_verisi: RiskTahminiGirdi
+}
+
+export interface ErpSnapshotItem {
+  id: number
+  ariza_tipi: string
+  parca_kodu_snapshot: string
+  parca_adi_snapshot: string
+  gerekli_miktar: number
+  stok_durumu: 'MEVCUT' | 'KAYIT_YOK' | string
+  toplam_stok: number | null
+  kullanilabilir_stok: number | null
+  minimum_stok: number | null
+  tedarik_gun: number | null
+  stok_yeterli: boolean
+  deneysel: boolean
+  onerilen_aksiyon_snapshot: string
+}
+
+export interface KararGerekcesi {
+  kod: string
+  mesaj: string
+  etki: string
+  puan_etkisi: number | null
+}
+
+export interface KararUyarisi {
+  kod: string
+  mesaj: string
+}
+
+export interface BakimKarariSnapshotInfo {
+  motor_surumu: string
+  teknik_aciliyet_skoru: number
+  tedarik_riski_skoru: number
+  nihai_oncelik_skoru: number
+  oncelik_seviyesi: 'KRITIK' | 'YUKSEK' | 'ORTA' | 'DUSUK' | string
+  ana_aksiyon: string
+  destekleyici_aksiyonlar: string[]
+  ana_ariza_tipi: string | null
+  karar_guveni: 'YUKSEK' | 'ORTA' | 'DUSUK' | string
+  gerekceler: KararGerekcesi[]
+  uyarilar: KararUyarisi[]
+  olusturulma_zamani: string
+}
+
+export interface ArizaTipiItem {
+  id: number
+  kod: string
+  olasilik: number
+  threshold: number
+  esik_asildi: boolean
+  guvenilir: boolean
+  deneysel: boolean
+  guven_durumu: string
+  operasyonel_kullanima_uygun: boolean
+  siralama: number
+  shap_etkileri: ShapEtkisi[]
+}
+
+export interface TahminKaydiDetay {
+  id: string
+  tekrarlandi?: boolean
+  makine: {
+    id: number
+    kod: string
+    ad: string
+    kritiklik_snapshot: number
+  }
+  olcum_zamani: string
+  olusturulma_zamani: string
+  kaynak: string
+  sensor_snapshot: RiskTahminiGirdi
+  tahmin: {
+    risk_orani: number
+    risk_uyarisi: boolean
+    threshold: number
+    model_version: string
+    pipeline_version: string
+    base_value: number | null
+  }
+  failure_type_durum: string
+  failure_type_model_version: string | null
+  failure_type_pipeline_version: string | null
+  belirsiz_fiziksel_tip: boolean
+  aciklanabilirlik_durum: string
+  ariza_tipleri: ArizaTipiItem[]
+  shap_etkileri: ShapEtkisi[]
+  erp_snapshotlari: ErpSnapshotItem[]
+  olusturan: {
+    id: number
+    kullanici_adi: string
+  }
+  trace_id: string
+  bakim_karari: BakimKarariSnapshotInfo | null
+}
+
 export function arizaTipiMetni(kod: string | null | undefined): string {
   if (!kod) return 'Belirlenemedi'
   switch (kod) {
@@ -170,4 +281,68 @@ export function rolMetni(rol: string | undefined): string {
   if (rol === 'ADMIN') return 'Yönetici'
   if (rol === 'USER') return 'Kullanıcı'
   return rol || 'Kullanıcı'
+}
+
+export function kaynakMetni(kaynak: string | null | undefined): string {
+  if (!kaynak) return 'Belirtilmedi'
+  switch (kaynak) {
+    case 'MANUEL':
+      return 'Manuel değerlendirme'
+    case 'REPLAY':
+      return 'Replay'
+    case 'ENTEGRASYON':
+      return 'Entegrasyon'
+    default:
+      return kaynak
+  }
+}
+
+export function kararGuveniMetni(guven: string | null | undefined): string {
+  if (!guven) return 'Belirtilmedi'
+  switch (guven) {
+    case 'YUKSEK':
+      return 'Yüksek'
+    case 'ORTA':
+      return 'Orta'
+    case 'DUSUK':
+      return 'Düşük'
+    default:
+      return guven
+  }
+}
+
+export function destekleyiciAksiyonMetni(aksiyon: string): string {
+  switch (aksiyon) {
+    case 'STOK_VERISINI_DOGRULA':
+      return 'Stok bilgisini doğrula'
+    case 'TEDARIK_SURECINI_BASLAT':
+      return 'Tedarik sürecini başlat'
+    case 'BAKIM_EKIBINI_BILGILENDIR':
+      return 'Bakım ekibini bilgilendir'
+    default:
+      return aksiyon
+  }
+}
+
+export function urunTipiMetni(tip: string | null | undefined): string {
+  if (!tip) return 'Belirtilmedi'
+  switch (tip) {
+    case 'L':
+      return 'Düşük Kalite (L)'
+    case 'M':
+      return 'Orta Kalite (M)'
+    case 'H':
+      return 'Yüksek Kalite (H)'
+    default:
+      return tip
+  }
+}
+
+export function sayiFormatla(val: unknown, decimals: number = 2): string {
+  if (val === null || val === undefined || val === '') return '-'
+  const num = typeof val === 'number' ? val : parseFloat(String(val))
+  if (Number.isNaN(num)) return String(val)
+  return num.toLocaleString('tr-TR', {
+    maximumFractionDigits: decimals,
+  })
 }

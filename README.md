@@ -14,7 +14,7 @@ Prepared sensör kayıtları, checksum doğrulamalı ve bounded-step
 
 ## Proje durumu
 
-Sprint 19A itibarıyla altyapı, kullanıcı/JWT akışı, merkezi hata sözleşmesi, hiyerarşik risk/fiziksel arıza tipi endpoint'i, SHAP açıklanabilirlik, versiyonlu bakım öncelik motoru, iş emri yaşam döngüsü, deterministik sensör replay altyapısı, premium ürün arayüzü, risk dashboard'u ve hızlı sensör analizi uygulanmıştır.
+Sprint 19B itibarıyla altyapı, kullanıcı/JWT akışı, merkezi hata sözleşmesi, hiyerarşik risk/fiziksel arıza tipi endpoint'i, SHAP açıklanabilirlik, versiyonlu bakım öncelik motoru, iş emri yaşam döngüsü, deterministik sensör replay altyapısı, premium ürün arayüzü, risk dashboard'u, hızlı sensör analizi, tahmin geçmişi, kalıcı değerlendirme ve ERP snapshot destekli bakım kararı detay ekranı uygulanmıştır.
 
 ## Kapsam
 

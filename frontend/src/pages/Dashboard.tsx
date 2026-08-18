@@ -165,7 +165,12 @@ export function Dashboard() {
               })
 
               return (
-                <div key={kayit.id} className="risk-kart">
+                <div
+                  key={kayit.id}
+                  className="risk-kart"
+                  onClick={() => navigate(`/app/tahminler/${kayit.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="risk-kart-makine">
                     <span className="risk-kart-makine-adi">
                       {kayit.makine.ad || 'Makine'}

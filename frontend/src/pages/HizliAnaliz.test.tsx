@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { HizliAnaliz } from './HizliAnaliz'
@@ -10,6 +11,14 @@ import { ApiHatasi } from '../types/apiHata'
 afterEach(() => {
   vi.restoreAllMocks()
 })
+
+function renderComponent() {
+  return render(
+    <MemoryRouter>
+      <HizliAnaliz />
+    </MemoryRouter>
+  )
+}
 
 const MOCK_LOW_RISK_RESPONSE: RiskTahminiYaniti = {
   risk_orani: 0.12,
@@ -83,7 +92,7 @@ const MOCK_UNCERTAIN_TYPE_RESPONSE: RiskTahminiYaniti = {
 
 describe('HizliAnaliz', () => {
   it('ilk açılışta %0 risk ve arıza mesajı göstermez, nötr placeholder gösterir', () => {
-    render(<HizliAnaliz />)
+    renderComponent()
     expect(screen.queryByText('%0')).not.toBeInTheDocument()
     expect(screen.queryByText('Bu ölçümde belirgin bir arıza sinyali görülmedi.')).not.toBeInTheDocument()
     expect(screen.getByText('Analiz sonucu burada görüntülenecek.')).toBeInTheDocument()
@@ -91,7 +100,7 @@ describe('HizliAnaliz', () => {
   })
 
   it('sensör giriş formunu ve varsayılan birimleri sunar', () => {
-    render(<HizliAnaliz />)
+    renderComponent()
     expect(screen.getByLabelText('Ürün Tipi')).toBeInTheDocument()
     expect(screen.getByLabelText('Hava Sıcaklığı')).toBeInTheDocument()
     expect(screen.getByLabelText('Proses Sıcaklığı')).toBeInTheDocument()
@@ -103,7 +112,7 @@ describe('HizliAnaliz', () => {
 
   it('düşük riskli analiz sonucunu ve mesajını doğru gösterir', async () => {
     vi.spyOn(tahminApi, 'hizliRiskTahmini').mockResolvedValue(MOCK_LOW_RISK_RESPONSE)
-    render(<HizliAnaliz />)
+    renderComponent()
 
     await userEvent.click(screen.getByRole('button', { name: 'Sensör Analizini Başlat' }))
 
@@ -115,7 +124,7 @@ describe('HizliAnaliz', () => {
 
   it('yüksek riskli analizi, güvenilir aday PWF, TWF uyarısını ve SHAP görünümünü sunar', async () => {
     vi.spyOn(tahminApi, 'hizliRiskTahmini').mockResolvedValue(MOCK_HIGH_RISK_PWF_RESPONSE)
-    render(<HizliAnaliz />)
+    renderComponent()
 
     await userEvent.click(screen.getByRole('button', { name: 'Sensör Analizini Başlat' }))
 
@@ -139,7 +148,7 @@ describe('HizliAnaliz', () => {
 
   it('teknik detaylar alanı varsayılan olarak kapalıdır ve kullanıcı açtığında görünür', async () => {
     vi.spyOn(tahminApi, 'hizliRiskTahmini').mockResolvedValue(MOCK_LOW_RISK_RESPONSE)
-    render(<HizliAnaliz />)
+    renderComponent()
 
     await userEvent.click(screen.getByRole('button', { name: 'Sensör Analizini Başlat' }))
     await waitFor(() => expect(screen.getByText('%12')).toBeInTheDocument())
@@ -154,7 +163,7 @@ describe('HizliAnaliz', () => {
 
   it('belirsiz fiziksel tip durumunda açıklayıcı mesaj verir', async () => {
     vi.spyOn(tahminApi, 'hizliRiskTahmini').mockResolvedValue(MOCK_UNCERTAIN_TYPE_RESPONSE)
-    render(<HizliAnaliz />)
+    renderComponent()
 
     await userEvent.click(screen.getByRole('button', { name: 'Sensör Analizini Başlat' }))
 
@@ -170,7 +179,7 @@ describe('HizliAnaliz', () => {
       })
     )
 
-    render(<HizliAnaliz />)
+    renderComponent()
     await userEvent.click(screen.getByRole('button', { name: 'Sensör Analizini Başlat' }))
 
     await waitFor(() => {
@@ -186,7 +195,7 @@ describe('HizliAnaliz', () => {
 
     vi.spyOn(tahminApi, 'hizliRiskTahmini').mockReturnValue(predictionPromise)
 
-    render(<HizliAnaliz />)
+    renderComponent()
     const btn = screen.getByRole('button', { name: 'Sensör Analizini Başlat' })
     await userEvent.click(btn)
 

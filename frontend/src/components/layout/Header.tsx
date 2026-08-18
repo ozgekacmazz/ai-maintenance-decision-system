@@ -13,8 +13,18 @@ export function Header({ sidebarAcik, onToggleSidebar }: HeaderProps) {
   const location = useLocation()
 
   let sayfaBasligi = 'Genel Bakış'
-  if (location.pathname.startsWith('/app/analiz')) {
+  const path = location.pathname
+
+  if (path === '/app/analiz') {
     sayfaBasligi = 'Hızlı Sensör Analizi'
+  } else if (path === '/app/tahminler/yeni') {
+    sayfaBasligi = 'Yeni Kalıcı Değerlendirme'
+  } else if (path === '/app/tahminler') {
+    sayfaBasligi = 'Tahmin Geçmişi'
+  } else if (path.startsWith('/app/tahminler/')) {
+    sayfaBasligi = 'Değerlendirme Detayı'
+  } else if (path === '/app/altyapi') {
+    sayfaBasligi = 'Altyapı Kontrolü'
   }
 
   return (

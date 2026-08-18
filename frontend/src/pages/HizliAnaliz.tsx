@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Activity,
   AlertTriangle,
@@ -9,6 +10,7 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
+  Plus,
 } from 'lucide-react'
 
 import { hizliRiskTahmini } from '../api/tahminler'
@@ -30,6 +32,7 @@ const VARSAYILAN_GIRDI: RiskTahminiGirdi = {
 }
 
 export function HizliAnaliz() {
+  const navigate = useNavigate()
   const [girdi, setGirdi] = useState<RiskTahminiGirdi>(VARSAYILAN_GIRDI)
   const [analizEdiliyor, setAnalizEdiliyor] = useState(false)
   const [sonuc, setSonuc] = useState<RiskTahminiYaniti | null>(null)
@@ -105,9 +108,9 @@ export function HizliAnaliz() {
                   value={girdi.urun_tipi}
                   onChange={(e) => alanDegistir('urun_tipi', e.target.value)}
                 >
-                  <option value="L">L (Hafif Üretim / Kalite L)</option>
-                  <option value="M">M (Orta Üretim / Kalite M)</option>
-                  <option value="H">H (Ağır Üretim / Kalite H)</option>
+                  <option value="L">Düşük Kalite (L)</option>
+                  <option value="M">Orta Kalite (M)</option>
+                  <option value="H">Yüksek Kalite (H)</option>
                 </select>
                 {alanHatalari.urun_tipi && (
                   <p className="alan-hatasi">{alanHatalari.urun_tipi.join(' ')}</p>
@@ -252,6 +255,16 @@ export function HizliAnaliz() {
                     </div>
                   )}
                 </div>
+
+                <button
+                  type="button"
+                  className="buton-sekonder"
+                  style={{ width: '100%', marginTop: '16px' }}
+                  onClick={() => navigate('/app/tahminler/yeni')}
+                >
+                  <Plus size={16} />
+                  <span>Kalıcı Değerlendirme Oluştur</span>
+                </button>
               </div>
 
               {/* Physical Failure Type Breakdown */}

@@ -1087,3 +1087,148 @@ input:focus, select:focus {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   Sprint 19B Visual & UX Polish Rules
+   ========================================================================== */
+.sayfa-konteyner {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sayfa-baslik-alani {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.sayfa-baslik-alani button {
+  width: auto;
+}
+
+.sayfa-basligi {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.sayfa-alt-basligi {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.veri-tablosu {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.veri-tablosu th {
+  padding: 14px 18px;
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.veri-tablosu td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.veri-tablosu tbody tr:hover {
+  background-color: var(--brand-primary-light);
+}
+
+.alt-bilgi {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.buton-primer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  background: var(--brand-primary);
+  color: var(--text-on-primary);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-speed);
+}
+
+.buton-primer:hover:not(:disabled) {
+  background-color: var(--brand-primary-hover);
+}
+
+.buton-sekonder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.buton-sekonder:hover:not(:disabled) {
+  background-color: var(--bg-subtle);
+  border-color: var(--border-hover);
+}
+
+.buton-sekonder:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.etiket {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}

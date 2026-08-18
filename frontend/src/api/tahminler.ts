@@ -4,7 +4,9 @@ import type {
   RiskTahminiGirdi,
   RiskTahminiYaniti,
   SayfalanmisYanit,
+  TahminKaydiDetay,
   TahminKaydiOzet,
+  TahminKaydiYazmaGirdi,
 } from '../types/tahminler'
 
 export async function hizliRiskTahmini(girdi: RiskTahminiGirdi): Promise<RiskTahminiYaniti> {
@@ -41,4 +43,30 @@ export async function tahminKayitlariniGetir(
   }
 
   return response.json() as Promise<SayfalanmisYanit<TahminKaydiOzet>>
+}
+
+export async function tahminKaydiDetayiGetir(id: string): Promise<TahminKaydiDetay> {
+  const response = await kimlikliIstek(`/api/tahminler/kayitlar/${id}/`)
+
+  if (!response.ok) {
+    throw await responseHatasiniNormalizeEt(response)
+  }
+
+  return response.json() as Promise<TahminKaydiDetay>
+}
+
+export async function kaliciTahminKaydiOlustur(
+  veriler: TahminKaydiYazmaGirdi
+): Promise<TahminKaydiDetay> {
+  const response = await kimlikliIstek('/api/tahminler/kayitlar/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(veriler),
+  })
+
+  if (!response.ok) {
+    throw await responseHatasiniNormalizeEt(response)
+  }
+
+  return response.json() as Promise<TahminKaydiDetay>
 }

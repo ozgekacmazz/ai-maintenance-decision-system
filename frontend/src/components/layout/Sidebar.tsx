@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Activity, Cpu } from 'lucide-react'
+import { LayoutDashboard, Activity, Cpu, History } from 'lucide-react'
 import { useAuth } from '../../app/AuthContext'
 import { rolMetni } from '../../types/tahminler'
 
@@ -41,6 +41,15 @@ export function Sidebar({ acik, onKapat }: SidebarProps) {
         >
           <Activity size={18} />
           <span>Hızlı Analiz</span>
+        </NavLink>
+
+        <NavLink
+          to="/app/tahminler"
+          className={({ isActive }) => (isActive ? 'nav-link aktif' : 'nav-link')}
+          onClick={onKapat}
+        >
+          <History size={18} />
+          <span>Tahmin Geçmişi</span>
         </NavLink>
       </nav>
 
