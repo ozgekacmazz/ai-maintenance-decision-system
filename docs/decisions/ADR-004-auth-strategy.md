@@ -31,3 +31,11 @@ Yerel `.env` oluşturulabilir ancak Git'e eklenmez. `.env.example` yalnız place
 ## Sonuçlar
 
 Sunucu tarafı izin kontrolleri tüm korumalı endpoint'lerde uygulanmalıdır. Pasif kullanıcıların giriş ve token yenileme davranışı engellenmelidir. Rotation ve blacklist ek uygulama ve test maliyeti getirir; bu güvenlik maliyeti kabul edilmiştir.
+
+## Sprint 3 uygulama notu
+
+Ürün `ADMIN` rolü ile Django'nun `is_staff`/`is_superuser` teknik yetkileri ayrı
+tutulmuştur. Kullanıcı yönetimi servisleri aktif ürün ADMIN kontrolü yapar. İlk
+development/demo yöneticisi, environment tabanlı ve idempotent `seed_admin`
+komutuyla staff ve superuser olarak oluşturulabilir. HTTP authentication ve JWT
+bu sprintte henüz uygulanmamıştır.

@@ -6,7 +6,14 @@ from apps.kullanicilar.models import Kullanici
 
 @admin.register(Kullanici)
 class KullaniciAdmin(UserAdmin):
-    list_display = ("username", "email", "rol", "is_staff", "is_active")
+    list_display = (
+        "username",
+        "email",
+        "rol",
+        "is_active",
+        "is_staff",
+        "is_superuser",
+    )
     list_filter = ("rol", "is_staff", "is_superuser", "is_active")
     search_fields = ("username", "first_name", "last_name", "email")
     ordering = ("username",)

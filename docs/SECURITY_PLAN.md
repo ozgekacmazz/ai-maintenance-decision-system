@@ -52,3 +52,15 @@ Onay ve ret işlemlerinde tahmin, karar türü, karar veren kullanıcı kimliği
 - Kötü sensör verisi: veri kalite kapısı.
 - Token kötüye kullanımı: kısa ömür, rotation ve blacklist.
 - Secret sızıntısı: Git dışı yerel `.env` ve secretsız `.env.example`.
+
+## 8. Sprint 3 kullanıcı yönetimi kontrolleri
+
+- Aktif `ADMIN` ürün rolü kullanıcı yönetebilir; `is_staff` ve `is_superuser`
+  ürün policy kararına dahil değildir. Django admin erişimi ayrıca `is_staff`
+  gerektirir.
+- Kullanıcı oluşturma ve parola yenileme Django parola validator'larını ve hash
+  mekanizmasını kullanır. Pasifleştirme kayıt silmez ve yönetici kendi hesabını
+  bu servisle pasifleştiremez.
+- Development/demo `seed_admin` parolayı yalnız environment'tan alır, çıktıya
+  yazmaz ve tekrar çalıştırmada varsayılan olarak değiştirmez.
+- Ayrıntılı kararlar [rol ve yetki matrisinde](ROLE_PERMISSION_MATRIX.md) bulunur.

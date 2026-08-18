@@ -84,6 +84,36 @@ docker compose exec backend python manage.py migrate
 docker compose exec backend python manage.py makemigrations --check --dry-run
 ```
 
+## Sprint 3: kullanıcı yönetimi ve admin bootstrap
+
+Ürün rol politikaları, transaction'lı kullanıcı servisleri, selector'lar ve
+idempotent geliştirme/demo admin bootstrap komutu eklenmiştir. Ayrıntılar için
+[rol ve yetki matrisine](docs/ROLE_PERMISSION_MATRIX.md) bakın.
+
+İzlenmeyen `.env` dosyanızda aşağıdaki environment değişkenlerini tanımlayın:
+
+- `ADMIN_USERNAME` (zorunlu)
+- `ADMIN_PASSWORD` (zorunlu)
+- `ADMIN_EMAIL` (opsiyonel)
+
+İlk çalıştırma ve idempotent tekrar çalıştırma aynı komutla yapılır:
+
+```powershell
+docker compose exec backend python manage.py seed_admin
+```
+
+Mevcut bootstrap yöneticisinin parolasını bilinçli olarak yenilemek için:
+
+```powershell
+docker compose exec backend python manage.py seed_admin --update-password
+```
+
+Tekrar çalıştırma ikinci kullanıcı oluşturmaz ve `--update-password` verilmedikçe
+mevcut parolayı değiştirmez. Parolayı komut satırı argümanı, Git kapsamındaki bir
+dosya veya shell history içine yazmayın. Bu komut yalnız development/demo
+bootstrap içindir; production secret yönetimi değildir. Sprint 3 henüz login,
+JWT veya kullanıcı CRUD API endpoint'i içermez.
+
 ### Test ve kalite kontrolleri
 
 ```powershell
