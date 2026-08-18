@@ -145,6 +145,13 @@ bulunur. Kullanıcı beklenmeyen bir hata sürerse bu takip kodunu destek ekibin
 iletebilir. Ayrıntılar: [hata sözleşmesi](docs/ERROR_CONTRACT.md) ve
 [güvenli loglama](docs/OBSERVABILITY.md).
 
+## Sprint 6: bakım CRUD API'leri
+
+Makine, parça, güncel stok ve arıza–parça kuralları için JWT korumalı, sayfalı
+REST endpoint'leri eklendi. USER aktif kayıtları okuyabilir; yalnız ürün rolü ADMIN
+yazabilir ve pasif kayıtları görebilir. Endpoint, filtre ve hata ayrıntıları için
+[bakım API belgesine](docs/MAINTENANCE_API.md) bakın.
+
 ### Test ve kalite kontrolleri
 
 ```powershell
