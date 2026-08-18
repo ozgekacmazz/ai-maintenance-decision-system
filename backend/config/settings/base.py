@@ -78,6 +78,14 @@ FAILURE_TYPE_MODEL_METADATA_PATH = Path(
     )
 )
 SHAP_TOP_N = env_int("SHAP_TOP_N", 3, minimum=1, maximum=5)
+REPLAY_PREPARED_DATASET_PATH = Path(
+    os.getenv("REPLAY_PREPARED_DATASET_PATH", "/data/processed/ai4i2020_prepared.csv")
+)
+REPLAY_PREPARED_METADATA_PATH = Path(
+    os.getenv(
+        "REPLAY_PREPARED_METADATA_PATH", "/data/metadata/failure_label_analysis.json"
+    )
+)
 
 MIDDLEWARE = [
     "apps.core.middleware.TraceIdMiddleware",

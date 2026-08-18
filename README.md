@@ -9,6 +9,9 @@ sınırları [bakım öncelik motoru belgesinde](docs/MAINTENANCE_PRIORITY_ENGIN
 Bakım kararı, optimistic concurrency ve immutable olay geçmişi kullanan kontrollü
 [iş emri yaşam döngüsüne](docs/WORK_ORDER_WORKFLOW.md) dönüştürülebilir.
 
+Prepared sensör kayıtları, checksum doğrulamalı ve bounded-step
+[sensör replay altyapısıyla](docs/SENSOR_REPLAY.md) güvenli biçimde oynatılabilir.
+
 ## Proje durumu
 
 Sprint 12 itibarıyla altyapı, kullanıcı/JWT akışı, merkezi hata sözleşmesi, bakım CRUD API'leri, AI4I veri hattı ve checksum doğrulamalı hiyerarşik risk/fiziksel arıza tipi endpoint'i uygulanmıştır. Replay, SHAP, öncelik ve iş emri akışları henüz uygulanmamıştır.

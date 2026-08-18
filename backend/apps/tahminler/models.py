@@ -387,3 +387,210 @@ class KararUyarisiSnapshot(ImmutableSnapshotModel):
                 condition=Q(sira__gte=1), name="karar_uyari_sira_pozitif"
             ),
         ]
+
+
+class ReplayOturumu(models.Model):
+    class Durum(models.TextChoices):
+        HAZIR = "HAZIR", "Hazır"
+        CALISIYOR = "CALISIYOR", "Çalışıyor"
+        DURAKLATILDI = "DURAKLATILDI", "Duraklatıldı"
+        TAMAMLANDI = "TAMAMLANDI", "Tamamlandı"
+        IPTAL_EDILDI = "IPTAL_EDILDI", "İptal edildi"
+        HATALI = "HATALI", "Hatalı"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    replay_numarasi = models.CharField(max_length=32, unique=True, editable=False)
+    olusturan = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="replay_oturumlari",
+    )
+    makine = models.ForeignKey(
+        Makine, on_delete=models.PROTECT, related_name="replay_oturumlari"
+    )
+    durum = models.CharField(max_length=16, choices=Durum.choices, default=Durum.HAZIR)
+    version = models.PositiveIntegerField(default=1)
+    politika_surumu = models.CharField(max_length=100)
+    kaynak_veri_seti = models.CharField(max_length=100)
+    prepared_sha256 = models.CharField(max_length=64)
+    split = models.CharField(max_length=12)
+    baslangic_ofseti = models.PositiveIntegerField(default=0)
+    toplam_oge = models.PositiveIntegerField()
+    varsayilan_batch_boyutu = models.PositiveSmallIntegerField()
+    sanal_aralik_saniye = models.PositiveIntegerField()
+    makine_esleme_politikasi = models.CharField(max_length=32)
+    hata_politikasi = models.CharField(max_length=20, default="HATADA_DEVAM")
+    adim_aktif = models.BooleanField(default=False)
+    aktif_claim_token = models.UUIDField(null=True)
+    olusturulma_zamani = models.DateTimeField(auto_now_add=True)
+    baslatilma_zamani = models.DateTimeField(null=True)
+    duraklatilma_zamani = models.DateTimeField(null=True)
+    tamamlanma_zamani = models.DateTimeField(null=True)
+    iptal_zamani = models.DateTimeField(null=True)
+    iptal_nedeni = models.CharField(max_length=500, null=True)
+    son_islem_zamani = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "replay_oturumlari"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    durum__in=(
+                        "HAZIR",
+                        "CALISIYOR",
+                        "DURAKLATILDI",
+                        "TAMAMLANDI",
+                        "IPTAL_EDILDI",
+                        "HATALI",
+                    )
+                ),
+                name="replay_durum_gecerli",
+            ),
+            models.CheckConstraint(
+                condition=Q(version__gte=1), name="replay_version_pozitif"
+            ),
+            models.CheckConstraint(
+                condition=Q(toplam_oge__gte=1, toplam_oge__lte=1000),
+                name="replay_toplam_1_1000",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    varsayilan_batch_boyutu__gte=1, varsayilan_batch_boyutu__lte=25
+                ),
+                name="replay_batch_1_25",
+            ),
+        ]
+
+    def __str__(self):
+        return self.replay_numarasi
+
+
+class ReplayOgesi(models.Model):
+    class Durum(models.TextChoices):
+        BEKLIYOR = "BEKLIYOR", "Bekliyor"
+        ISLENIYOR = "ISLENIYOR", "İşleniyor"
+        BASARILI = "BASARILI", "Başarılı"
+        BASARISIZ = "BASARISIZ", "Başarısız"
+        ATLANDI = "ATLANDI", "Atlandı"
+
+    oturum = models.ForeignKey(
+        ReplayOturumu, on_delete=models.CASCADE, related_name="ogeler"
+    )
+    sira = models.PositiveIntegerField()
+    kaynak_satir_kimligi = models.PositiveIntegerField()
+    external_machine_id = models.CharField(max_length=50)
+    sanal_timestamp = models.DateTimeField()
+    sensor_snapshot = models.JSONField()
+    ground_truth_snapshot = models.JSONField()
+    durum = models.CharField(
+        max_length=12, choices=Durum.choices, default=Durum.BEKLIYOR
+    )
+    deneme_sayisi = models.PositiveSmallIntegerField(default=0)
+    islem_baslangic_zamani = models.DateTimeField(null=True)
+    tamamlanma_zamani = models.DateTimeField(null=True)
+    hata_kodu = models.CharField(max_length=64, null=True)
+    hata_mesaji = models.CharField(max_length=300, null=True)
+    tahmin_kaydi = models.OneToOneField(
+        TahminKaydi, on_delete=models.PROTECT, null=True, related_name="replay_ogesi"
+    )
+    trace_id = models.CharField(max_length=64, null=True)
+    processing_token = models.UUIDField(null=True)
+    islem_suresi_ms = models.FloatField(null=True)
+    olusturulma_zamani = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "replay_ogeleri"
+        ordering = ("sira",)
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    durum__in=(
+                        "BEKLIYOR",
+                        "ISLENIYOR",
+                        "BASARILI",
+                        "BASARISIZ",
+                        "ATLANDI",
+                    )
+                ),
+                name="replay_oge_durum_gecerli",
+            ),
+            models.UniqueConstraint(
+                fields=("oturum", "sira"), name="replay_oge_sira_benzersiz"
+            ),
+            models.UniqueConstraint(
+                fields=("oturum", "kaynak_satir_kimligi"),
+                name="replay_oge_kaynak_benzersiz",
+            ),
+            models.CheckConstraint(
+                condition=Q(sira__gte=1), name="replay_oge_sira_pozitif"
+            ),
+            models.CheckConstraint(
+                condition=Q(deneme_sayisi__gte=0), name="replay_deneme_negatif_degil"
+            ),
+        ]
+
+
+class ReplayOlayi(ImmutableSnapshotModel):
+    class Tip(models.TextChoices):
+        OTURUM_OLUSTURULDU = "OTURUM_OLUSTURULDU", "Oturum oluşturuldu"
+        BASLATILDI = "BASLATILDI", "Başlatıldı"
+        DURAKLATILDI = "DURAKLATILDI", "Duraklatıldı"
+        DEVAM_ETTIRILDI = "DEVAM_ETTIRILDI", "Devam ettirildi"
+        OGELER_ISLENDI = "OGELER_ISLENDI", "Öğeler işlendi"
+        IPTAL_EDILDI = "IPTAL_EDILDI", "İptal edildi"
+        BASARISIZLAR_YENIDEN_HAZIRLANDI = (
+            "BASARISIZLAR_YENIDEN_HAZIRLANDI",
+            "Başarısızlar yeniden hazırlandı",
+        )
+
+    oturum = models.ForeignKey(
+        ReplayOturumu, on_delete=models.CASCADE, related_name="olaylar"
+    )
+    olay_tipi = models.CharField(max_length=40, choices=Tip.choices)
+    gerceklestiren = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="replay_olaylari",
+    )
+    gerceklestiren_username_snapshot = models.CharField(max_length=150)
+    trace_id = models.CharField(max_length=64)
+    onceki_durum = models.CharField(max_length=16, null=True)
+    yeni_durum = models.CharField(max_length=16)
+    version = models.PositiveIntegerField()
+    ilk_sira = models.PositiveIntegerField(null=True)
+    son_sira = models.PositiveIntegerField(null=True)
+    basarili_sayisi = models.PositiveIntegerField(default=0)
+    basarisiz_sayisi = models.PositiveIntegerField(default=0)
+    mesaj = models.CharField(max_length=300, null=True)
+    olusturulma_zamani = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "replay_olaylari"
+        ordering = ("olusturulma_zamani", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    olay_tipi__in=(
+                        "OTURUM_OLUSTURULDU",
+                        "BASLATILDI",
+                        "DURAKLATILDI",
+                        "DEVAM_ETTIRILDI",
+                        "OGELER_ISLENDI",
+                        "IPTAL_EDILDI",
+                        "BASARISIZLAR_YENIDEN_HAZIRLANDI",
+                    )
+                ),
+                name="replay_olay_tipi_gecerli",
+            ),
+            models.CheckConstraint(
+                condition=Q(version__gte=1), name="replay_olay_version_pozitif"
+            ),
+            models.CheckConstraint(
+                condition=Q(ilk_sira__isnull=True) | Q(ilk_sira__gte=1),
+                name="replay_olay_ilk_sira_pozitif",
+            ),
+            models.CheckConstraint(
+                condition=Q(son_sira__isnull=True) | Q(son_sira__gte=1),
+                name="replay_olay_son_sira_pozitif",
+            ),
+        ]

@@ -14,3 +14,15 @@ class IdempotencyCakismasiHatasi(KaynakCakismasiHatasi):
 class KararMotoruHatasi(HizmetKullanilamiyorHatasi):
     kod = "KARAR_MOTORU_KULLANILAMIYOR"
     mesaj = "Bakım karar hizmeti geçici olarak kullanılamıyor."
+
+
+class ReplayCakismasiHatasi(KaynakCakismasiHatasi):
+    def __init__(self, kod, mesaj):
+        super().__init__(mesaj)
+        self.kod = kod
+        self.mesaj = mesaj
+
+
+class ReplayVeriSetiHatasi(HizmetKullanilamiyorHatasi):
+    kod = "REPLAY_VERI_SETI_KULLANILAMIYOR"
+    mesaj = "Replay veri seti geçici olarak kullanılamıyor."

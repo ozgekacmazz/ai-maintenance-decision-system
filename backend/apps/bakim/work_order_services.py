@@ -94,6 +94,11 @@ def is_emri_olustur(*, actor, trace_id, veriler):
             )
             if not prediction:
                 raise NotFound("Tahmin kaydı bulunamadı.")
+            if prediction.kaynak == TahminKaydi.Kaynak.REPLAY:
+                raise IsEmriCakismasiHatasi(
+                    "REPLAY_TAHMININDEN_IS_EMRI_OLUSTURULAMAZ",
+                    "Replay tahmininden iş emri oluşturulamaz.",
+                )
             existing = BakimIsEmri.objects.filter(
                 olusturan=actor, idempotency_key=data["idempotency_key"]
             ).first()

@@ -156,6 +156,8 @@ Yeni kayıtlardaki açıklanabilir bakım kararı, formüller, aksiyonlar ve iş
 sıralaması [bakım öncelik motoru belgesinde](MAINTENANCE_PRIORITY_ENGINE.md) tanımlıdır.
 Kararı operasyonel iş emrine dönüştüren endpointler ve audit sözleşmesi
 [iş emri yaşam döngüsü belgesinde](WORK_ORDER_WORKFLOW.md) açıklanır.
+Prepared veri replay endpointleri, leakage ve metrik sözleşmesi
+[sensör replay belgesinde](SENSOR_REPLAY.md) açıklanır.
 
 Örnek karar bölümü:
 

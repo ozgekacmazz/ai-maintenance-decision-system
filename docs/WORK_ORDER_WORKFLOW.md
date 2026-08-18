@@ -10,6 +10,8 @@ ayrı bir immutable `IsEmriOlayi` üretir.
 İş emri otomatik makine durdurma veya güvenlik garantisi değildir. Stok azaltmaz,
 rezervasyon veya satın alma siparişi oluşturmaz. Nihai operasyonel yetki bakım
 personelindedir.
+Replay kaynaklı tahminler sentetik/geçmiş değerlendirme akışıdır ve operasyon
+kuyruğunu kirletmemek için iş emrine dönüştürülemez.
 
 ## Model şeması ve aktif emir politikası
 

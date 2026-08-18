@@ -137,3 +137,7 @@ aynı kısa transaction içinde yazılır. Tasarım ve formüller
 İş emri bu immutable geçmişten ayrı, kontrollü güncellenebilir aggregate'tır. Durum,
 atama ve etkin öncelik yalnız kilitli domain servisleriyle değişir; her değişiklik
 immutable olay üretir. Ayrıntılar [iş emri yaşam döngüsündedir](WORK_ORDER_WORKFLOW.md).
+
+Replay, tahmin domaininde oturum/öğe/immutable olay olarak modellenir. Dataset yalnız
+oturum kurulurken okunur; claim transaction'ı ile uzun inference birbirinden ayrılır.
+Ayrıntılar [sensör replay belgesindedir](SENSOR_REPLAY.md).

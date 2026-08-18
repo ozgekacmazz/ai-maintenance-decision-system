@@ -64,6 +64,8 @@ snapshot'larını verir. Trace ID standart hata ve başarı izleme sözleşmesin
 Kalıcı karar snapshot'ından iş emri oluşturma sözleşmesi
 [iş emri yaşam döngüsü belgesinde](WORK_ORDER_WORKFLOW.md) tanımlıdır; iş emri
 değişiklikleri tahmin veya karar snapshot'ını değiştirmez.
+Replay öğeleri mevcut servisi `kaynak=REPLAY` ve deterministik idempotency key ile
+kullanır; ayrıntılar [sensör replay belgesindedir](SENSOR_REPLAY.md).
 F12'de ilk POST `201`, aynı istek `200`/aynı ID, farklı payload `409`, sayfalı liste,
 child detayları, SHAP/ERP snapshot'ları, model sürümü/threshold, trace ID,
 `PATCH`/`DELETE` için `405`, response süresi ve boyutu kontrol edilmelidir.

@@ -34,6 +34,7 @@ services:
       - ./backend:/app
       - ./ml:/opt/ml:ro
       - ./data/metadata:/data/metadata:ro
+      - ./data/processed:/data/processed:ro
     ports:
       - "8000:8000"
     depends_on:
