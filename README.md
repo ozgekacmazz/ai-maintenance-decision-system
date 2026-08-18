@@ -1,0 +1,50 @@
+# AI Destekli Bakım Karar Sistemi
+
+Bu depo, makinelerin sensör verilerinden arıza riski ve olası arıza türü üreten; sonucu açıklayan; makine kritikliği, stok ve tedarik bilgileriyle önceliklendiren bir bakım karar destek sisteminin Sprint 0 belgelerini içerir.
+
+## Proje durumu
+
+Sprint 0'da gereksinimler, mimari, veri ve makine öğrenmesi yaklaşımı, güvenlik, hata sözleşmesi ve temel teknik kararlar belgelenmiştir. Uygulama, replay akışı, veri hattı ve model henüz geliştirilmemiştir.
+
+## Kapsam
+
+PDF'nin zorunlu kapsamı şunlardır:
+
+- USER ve ADMIN rolleriyle kullanıcı girişi,
+- öncelik sıralı risk listesi,
+- tahmin gerekçesi, önerilen aksiyon, gerekli parça ve stok bilgisini gösteren makine detay ekranı,
+- kullanıcı onayı ve ret akışı,
+- onaylanmış kayıtları gösteren iş emirleri ekranı,
+- makine/stok, tahmin logu ve kullanıcı yönetimi sunan admin ekranları,
+- demo verisini satır satır besleyen replay akışı,
+- ilk üç açıklama faktörünün mutlak SHAP etkisine göre gösterilmesi,
+- kullanıcı onayı olmadan iş emri oluşturulmaması.
+
+PDF'deki FastAPI, Streamlit, AI4I, Random Forest, 0.60 eşik değeri ve örnek minimum tablo alanları öneridir. Proje teknoloji kararı Django REST Framework, React/TypeScript ve PostgreSQL'dir. AI4I demo veri seti ve Random Forest ana model adayı olarak benimsenmiştir; nihai model ve eşik ölçüm sonuçlarıyla seçilecektir.
+
+## Temel ürün kararları
+
+- Genel öncelik; arıza riski, makine kritikliği ve stok katsayısına dayanır ve 1–5 arasında tam sayı olarak gösterilir.
+- Bakım önceliği ve tedarik önceliği, genel önceliği açıklayan yardımcı alt skorlardır.
+- Sistem yalnızca iş emri taslağı sunar; kullanıcı onayından önce iş emri oluşturmaz.
+- Onay ve ret kararları kullanıcı kimliği ve zamanıyla kaydedilir.
+- Gerçek ERP bağlantısı ilk sürüm kapsamında değildir. ERP'ye hazır iç veri modeli ve API tasarlanacaktır.
+- Kullanıcı kaydı self-service değildir; kullanıcıları ADMIN oluşturur.
+
+## Veri ve model özeti
+
+- Sentetik `machine_id` ve `timestamp` yalnız replay/demo amacıyla kullanılır; temporal model başarımı için kanıt değildir.
+- Sıcaklık farkı ve mekanik güç özellikleri türetilir.
+- Accuracy model seçiminde veya değerlendirmesinde kullanılmaz.
+- Precision, recall, F1, PR-AUC, confusion matrix, false positive ve false negative değerlendirilir.
+- Model joblib ile `.joblib` artefaktına kaydedilir ve uygulama çalışırken yeniden eğitilmez.
+
+## Belgeler
+
+- [Ürün gereksinimleri](docs/PRODUCT_REQUIREMENTS.md)
+- [Mimari](docs/ARCHITECTURE.md)
+- [Veri ve ML planı](docs/DATA_AND_ML_PLAN.md)
+- [Güvenlik planı](docs/SECURITY_PLAN.md)
+- [Hata sözleşmesi](docs/ERROR_CONTRACT.md)
+- [Terim sözlüğü](docs/TERIM_SOZLUGU.md)
+- [Mimari karar kayıtları](docs/decisions/)

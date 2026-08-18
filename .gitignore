@@ -1,0 +1,61 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg-info/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Django
+*.log
+local_settings.py
+
+# Node and frontend
+node_modules/
+dist/
+build/
+.npm/
+.parcel-cache/
+
+# ML artifacts
+*.joblib
+*.pkl
+*.h5
+*.model
+/ml/artifacts/
+/ml/checkpoints/
+
+# Data and raw files
+data/raw/*
+!data/raw/.gitkeep
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Coverage and generated output
+coverage/
+/reports/generated/
