@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.core.exceptions import KimlikDogrulamaApiHatasi
 from apps.kullanicilar.api.permissions import UrunAdminiMi
 from apps.kullanicilar.api.serializers import GirisSerializer, KullaniciOzetiSerializer
 from apps.kullanicilar.auth_services import (
@@ -49,7 +50,7 @@ class LoginView(APIView):
         try:
             kullanici, access, refresh = giris_yap(**serializer.validated_data)
         except KimlikDogrulamaHatasi as exc:
-            return Response({"detay": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+            raise KimlikDogrulamaApiHatasi from exc
         response = Response(
             {"access": access, "kullanici": _kullanici_ozeti(kullanici)}
         )
@@ -65,13 +66,11 @@ class RefreshView(APIView):
     def post(self, request):
         raw_refresh = request.COOKIES.get(settings.JWT_REFRESH_COOKIE_NAME)
         if not raw_refresh:
-            return Response({"detay": "Oturum yenilenemedi."}, status=401)
+            raise KimlikDogrulamaApiHatasi
         try:
             access, refresh = refresh_token_yenile(raw_refresh)
         except KimlikDogrulamaHatasi as exc:
-            response = Response({"detay": str(exc)}, status=401)
-            refresh_cookie_sil(response)
-            return response
+            raise KimlikDogrulamaApiHatasi from exc
         response = Response({"access": access})
         refresh_cookie_ayarla(response, refresh)
         return response

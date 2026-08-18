@@ -137,6 +137,14 @@ ekran görüntülerine taşımayın. Süresi dolmuş blacklist kayıtlarının b
 docker compose exec backend python manage.py flushexpiredtokens
 ```
 
+## Sprint 5: hata ve takip kodu
+
+`/api/` hataları kararlı `hata.kod`, güvenli mesaj, alan hataları ve `trace_id`
+ile döner. Aynı kimlik `X-Trace-ID` header'ında ve yapılandırılmış request logunda
+bulunur. Kullanıcı beklenmeyen bir hata sürerse bu takip kodunu destek ekibine
+iletebilir. Ayrıntılar: [hata sözleşmesi](docs/ERROR_CONTRACT.md) ve
+[güvenli loglama](docs/OBSERVABILITY.md).
+
 ### Test ve kalite kontrolleri
 
 ```powershell

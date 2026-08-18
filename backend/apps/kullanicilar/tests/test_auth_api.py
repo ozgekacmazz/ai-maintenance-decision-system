@@ -72,7 +72,8 @@ def test_yanlis_username_ve_parola_ayni_genel_hatayi_dondurur(csrf_client, auth_
     yanlis_user = login(csrf_client, username="olmayan")
     yanlis_parola = login(csrf_client, password="yanlis-parola")
     assert yanlis_user.status_code == yanlis_parola.status_code == 401
-    assert yanlis_user.data == yanlis_parola.data
+    for alan in ("kod", "mesaj", "alanlar"):
+        assert yanlis_user.data["hata"][alan] == yanlis_parola.data["hata"][alan]
 
 
 def test_pasif_kullanici_giris_yapamaz(csrf_client, auth_user):

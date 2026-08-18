@@ -1,4 +1,5 @@
 import type { GirisYaniti, KullaniciOzeti } from '../types/auth'
+import { ApiHatasi, agHatasiniNormalizeEt, responseHatasiniNormalizeEt } from '../types/apiHata'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 let accessToken: string | null = null
@@ -39,9 +40,13 @@ async function authPost(path: string, body?: unknown): Promise<Response> {
 }
 
 export async function girisYap(username: string, password: string): Promise<GirisYaniti> {
-  const response = await authPost('/api/auth/login/', { username, password })
-  if (response.status === 401) throw new Error('Kullanıcı adı veya parola hatalı.')
-  if (!response.ok) throw new Error('Giriş işlemi tamamlanamadı.')
+  let response: Response
+  try {
+    response = await authPost('/api/auth/login/', { username, password })
+  } catch {
+    throw agHatasiniNormalizeEt()
+  }
+  if (!response.ok) throw await responseHatasiniNormalizeEt(response)
   const data = await response.json() as GirisYaniti
   accessTokeniAyarla(data.access)
   return data
@@ -51,14 +56,14 @@ export async function accessTokeniYenile(): Promise<string> {
   if (!refreshPromise) {
     refreshPromise = authPost('/api/auth/refresh/')
       .then(async (response) => {
-        if (!response.ok) throw new Error('Oturum yenilenemedi.')
+        if (!response.ok) throw await responseHatasiniNormalizeEt(response)
         const data = await response.json() as { access: string }
         accessTokeniAyarla(data.access)
         return data.access
       })
       .catch((error) => {
         accessTokeniAyarla(null)
-        throw error
+        throw error instanceof ApiHatasi ? error : agHatasiniNormalizeEt()
       })
       .finally(() => { refreshPromise = null })
   }
@@ -68,7 +73,12 @@ export async function accessTokeniYenile(): Promise<string> {
 export async function kimlikliIstek(path: string, init: RequestInit = {}, tekrar = true): Promise<Response> {
   const headers = new Headers(init.headers)
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
+  } catch {
+    throw agHatasiniNormalizeEt()
+  }
   if (response.status === 401 && tekrar) {
     await accessTokeniYenile()
     return kimlikliIstek(path, init, false)
@@ -78,7 +88,7 @@ export async function kimlikliIstek(path: string, init: RequestInit = {}, tekrar
 
 export async function kullaniciyiGetir(): Promise<KullaniciOzeti> {
   const response = await kimlikliIstek('/api/auth/me/')
-  if (!response.ok) throw new Error('Kullanıcı bilgisi alınamadı.')
+  if (!response.ok) throw await responseHatasiniNormalizeEt(response)
   return response.json() as Promise<KullaniciOzeti>
 }
 
@@ -93,6 +103,6 @@ export async function cikisYap(): Promise<void> {
 export async function adminKontrolu(): Promise<'izinli' | 'yasak'> {
   const response = await kimlikliIstek('/api/auth/admin-kontrol/')
   if (response.status === 403) return 'yasak'
-  if (!response.ok) throw new Error('Admin kontrolü tamamlanamadı.')
+  if (!response.ok) throw await responseHatasiniNormalizeEt(response)
   return 'izinli'
 }

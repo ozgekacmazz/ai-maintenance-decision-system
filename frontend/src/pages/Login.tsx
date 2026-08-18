@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 
 import { useAuth } from '../app/AuthContext'
+import { ApiHatasi } from '../types/apiHata'
 
 export function Login() {
   const { giris } = useAuth()
@@ -9,6 +10,7 @@ export function Login() {
   const [gorunur, setGorunur] = useState(false)
   const [gonderiliyor, setGonderiliyor] = useState(false)
   const [hata, setHata] = useState<string | null>(null)
+  const [alanHatalari, setAlanHatalari] = useState<Record<string, unknown>>({})
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -18,10 +20,12 @@ export function Login() {
     }
     setGonderiliyor(true)
     setHata(null)
+    setAlanHatalari({})
     try {
       await giris(username, password)
     } catch (error) {
       setHata(error instanceof Error ? error.message : 'Giriş işlemi tamamlanamadı.')
+      if (error instanceof ApiHatasi) setAlanHatalari(error.alanlar)
     } finally {
       setGonderiliyor(false)
     }
@@ -36,11 +40,13 @@ export function Login() {
         <form onSubmit={(event) => void submit(event)}>
           <label htmlFor="username">Kullanıcı adı</label>
           <input id="username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+          {Boolean(alanHatalari.username) && <p className="alan-hatasi">Kullanıcı adını kontrol edin.</p>}
           <label htmlFor="password">Parola</label>
           <div className="parola-alani">
             <input id="password" type={gorunur ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
             <button className="goz" type="button" aria-label={gorunur ? 'Parolayı gizle' : 'Parolayı göster'} onClick={() => setGorunur(!gorunur)}>{gorunur ? 'Gizle' : 'Göster'}</button>
           </div>
+          {Boolean(alanHatalari.password) && <p className="alan-hatasi">Parolayı kontrol edin.</p>}
           {hata && <p role="alert" className="hata">{hata}</p>}
           <button type="submit" disabled={gonderiliyor}>{gonderiliyor ? 'Giriş yapılıyor…' : 'Giriş yap'}</button>
         </form>

@@ -24,7 +24,7 @@ def test_saglik_veritabani_hatasi():
         response = APIClient().get("/api/saglik/")
 
     assert response.status_code == 503
-    assert response.json()["veritabani"] == "baglanti_yok"
+    assert response.json()["hata"]["kod"] == "HIZMET_KULLANILAMIYOR"
 
 
 def test_saglik_desteklenmeyen_yontem():
