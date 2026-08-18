@@ -114,3 +114,18 @@ varsayılan yapı gereksiz polling kullanmaz.
 Sprint 1 yalnız altyapıyı kapsar. Kimlik doğrulama, kullanıcı ve domain modelleri,
 risk dashboard'u, tahmin/ML, replay, stok, iş emri ve ERP entegrasyonu henüz
 uygulanmamıştır.
+
+## Sprint 2: temel veri modeli
+
+Özel `Kullanici` modeli ile makine, parça, güncel stok ve arıza–parça kuralı
+modelleri eklenmiştir. Şema, ilişkiler, constraint ve index gerekçeleri için
+[Sprint 2 ER diyagramına](docs/ER_DIAGRAM.md) bakın. Ürün rolü (`USER`/`ADMIN`)
+Django'nun `is_staff` ve `is_superuser` yetkilerinden bağımsızdır.
+
+Migration durumunu doğrulamak için:
+
+```powershell
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py showmigrations
+docker compose exec backend python manage.py makemigrations --check --dry-run
+```

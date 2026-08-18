@@ -82,3 +82,13 @@ TWF, HDF, PWF ve OSF için doğrulanmış parça/aksiyon eşlemeleri kullanılac
 - Her istek `trace_id` ile izlenir.
 - Aynı tahminden birden fazla iş emri oluşturulması transaction ve benzersiz kısıtla engellenir.
 - Yerel `.env` Git dışında tutulur; yalnızca yer tutucu değerler içeren ve gizli bilgi içermeyen `.env.example` izlenir.
+
+## 10. Sprint 2 uygulama modülleri
+
+- `apps.kullanicilar`, Django `AbstractUser` tabanlı özel kullanıcı modelini ve
+  ürün rolünü içerir. Ürün rolü ile Django admin/staff yetkileri ayrıdır.
+- `apps.bakim`, makine, parça, güncel stok snapshot'ı ve arıza–parça kurallarını
+  içerir. İlişkiler ve PostgreSQL bütünlük kuralları
+  [ER diyagramında](ER_DIAGRAM.md) belgelenmiştir.
+- API kullanım senaryoları, authentication ve CRUD uçları Sprint 2 kapsamında
+  değildir; mevcut health API değişmeden korunur.
