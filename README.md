@@ -233,6 +233,21 @@ Sonuçlar [arıza tipi etiket analizi](docs/FAILURE_LABEL_ANALYSIS.md) belgesind
 `data/metadata/failure_label_analysis.json` metadata dosyasında yer alır. Bu
 sprint model eğitmez veya mevcut tahmin API'sini değiştirmez.
 
+## Sprint 11: fiziksel arıza tipi modeli
+
+TWF, HDF, PWF ve OSF için dört bağımsız pipeline'dan oluşan multi-label
+modeli çevrimdışı eğitmek için:
+
+```powershell
+$env:PYTHONPATH="ml/src"
+python ml/scripts/train_failure_type_model.py
+```
+
+Deney ayrıntıları [failure-type model raporunda](docs/FAILURE_TYPE_MODEL_REPORT.md),
+kullanım sınırları [model kartında](docs/MODEL_CARD_FAILURE_TYPE.md) yer alır.
+`ml/artifacts/failure-type-1.0.0.joblib` pickle tabanlı olduğu için Git dışında
+tutulur; uygulama çalışırken eğitim yapılmaz.
+
 ### Test ve kalite kontrolleri
 
 ```powershell

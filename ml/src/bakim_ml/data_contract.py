@@ -27,6 +27,7 @@ NUMERIC_SENSOR_COLUMNS = (
 )
 BINARY_TARGET_COLUMNS = ("makine_arizasi", "TWF", "HDF", "PWF", "OSF", "RNF")
 FAILURE_TYPE_COLUMNS = ("TWF", "HDF", "PWF", "OSF", "RNF")
+MODELED_FAILURE_TYPE_COLUMNS = ("TWF", "HDF", "PWF", "OSF")
 DERIVED_COLUMNS = ("proses_hava_sicaklik_farki_k", "acisal_hiz_rad_s", "mekanik_guc_w")
 MODEL_FEATURE_COLUMNS = (
     "urun_tipi",
