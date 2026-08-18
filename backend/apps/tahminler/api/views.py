@@ -25,4 +25,4 @@ class RiskTahmini(APIView):
     def post(self, request):
         serializer = RiskTahminiGirdiSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(services.risk_tahmini_yap(serializer.validated_data))
+        return Response(services.hiyerarsik_risk_tahmini_yap(serializer.validated_data))

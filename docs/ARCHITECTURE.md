@@ -102,3 +102,12 @@ güvenilir artefakt ve feature engineering fonksiyonlarını yeniden kullanır.
 Doğrulanmış model process içinde kilitli lazy cache ile bir kez yüklenir.
 Tahmin sonucu bu sprintte veritabanına yazılmaz. Modelin bulunmaması genel sağlık
 kontrolünü düşürmez; tahmin isteği güvenli ve izlenebilir bir `503` alır.
+
+## 12. Sprint 12 hiyerarşik inference
+
+Tek risk endpoint'i ortak feature frame'i üzerinde önce binary modeli çalıştırır.
+Failure-type modeli yalnız risk uyarısında ayrı doğrulanmış lazy cache'ten alınır.
+HDF/PWF/OSF operasyonel aday, TWF deneysel sinyal, RNF model dışıdır. Güvenilir
+aday bulunmazsa sonuç belirsiz fiziksel tip olarak işaretlenir. Riskli istekte
+ikinci model kullanılamıyorsa kısmi başarı yerine standart `503` döner. Ayrıntılı
+akış, sınırlamalar ve F12 listesi [hiyerarşik tahmin belgesindedir](HIERARCHICAL_PREDICTION_FLOW.md).

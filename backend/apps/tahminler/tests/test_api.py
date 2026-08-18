@@ -1,11 +1,12 @@
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 from rest_framework.test import APIClient
 
 from apps.kullanicilar.models import Kullanici
 from apps.tahminler.exceptions import ModelHizmetiHatasi
-from apps.tahminler.services import MODEL_VERSION
+from apps.tahminler.services import MODEL_VERSION, YukluModel
 
 URL = "/api/tahminler/risk/"
 VALID = {
@@ -22,7 +23,25 @@ RESULT = {
     "threshold": 0.22958333333333336,
     "model_version": MODEL_VERSION,
     "pipeline_version": "1.0.0",
+    "ariza_tipi_degerlendirmesi": {
+        "durum": "DEGERLENDIRILDI",
+        "model_version": "failure-type-1.0.0",
+        "pipeline_version": "1.0.0",
+        "guvenilir_adaylar": [],
+        "deneysel_sinyaller": [],
+        "belirsiz_fiziksel_tip": True,
+    },
 }
+
+
+class BinaryPipeline:
+    classes_ = np.asarray((0, 1))
+
+    def __init__(self, probability):
+        self.probability = probability
+
+    def predict_proba(self, frame):
+        return np.asarray([[1 - self.probability, self.probability]])
 
 
 @pytest.fixture
@@ -48,7 +67,9 @@ def test_anonymous_request_is_401(client):
 @pytest.mark.parametrize("role", [Kullanici.Rol.USER, Kullanici.Rol.ADMIN])
 def test_active_roles_can_predict(client, role):
     authenticated(client, role)
-    with patch("apps.tahminler.services.risk_tahmini_yap", return_value=RESULT):
+    with patch(
+        "apps.tahminler.services.hiyerarsik_risk_tahmini_yap", return_value=RESULT
+    ):
         response = client.post(URL, VALID, format="json", HTTP_X_TRACE_ID="test-trace")
     assert response.status_code == 200
     assert response.data == RESULT
@@ -111,7 +132,7 @@ def test_unexpected_and_leakage_fields_are_rejected(client, field):
 def test_model_failure_is_safe_503_with_matching_trace(client):
     authenticated(client)
     with patch(
-        "apps.tahminler.services.risk_tahmini_yap",
+        "apps.tahminler.services.hiyerarsik_risk_tahmini_yap",
         side_effect=ModelHizmetiHatasi(),
     ):
         response = client.post(URL, VALID, format="json", HTTP_X_TRACE_ID="model-trace")
@@ -122,3 +143,37 @@ def test_model_failure_is_safe_503_with_matching_trace(client):
     assert "checksum" not in serialized
     assert ".joblib" not in serialized
     assert "traceback" not in serialized
+
+
+def test_low_risk_succeeds_when_failure_type_model_is_missing(client):
+    authenticated(client)
+    binary = YukluModel(BinaryPipeline(0.1), 0.6, MODEL_VERSION, "1.0.0")
+    with (
+        patch("apps.tahminler.services.modeli_getir", return_value=binary),
+        patch(
+            "apps.tahminler.services.ariza_tipi_modeli_getir",
+            side_effect=AssertionError("çağrılmamalı"),
+        ) as failure_loader,
+    ):
+        response = client.post(URL, VALID, format="json")
+    assert response.status_code == 200
+    assert response.data["ariza_tipi_degerlendirmesi"]["durum"] == "RISK_ESIK_ALTINDA"
+    failure_loader.assert_not_called()
+
+
+def test_high_risk_missing_failure_type_model_is_safe_503(client):
+    authenticated(client)
+    binary = YukluModel(BinaryPipeline(0.9), 0.6, MODEL_VERSION, "1.0.0")
+    with (
+        patch("apps.tahminler.services.modeli_getir", return_value=binary),
+        patch(
+            "apps.tahminler.services.ariza_tipi_modeli_getir",
+            side_effect=ModelHizmetiHatasi(),
+        ),
+    ):
+        response = client.post(
+            URL, VALID, format="json", HTTP_X_TRACE_ID="failure-type-trace"
+        )
+    assert response.status_code == 503
+    assert response.data["hata"]["kod"] == "MODEL_HIZMETI_KULLANILAMIYOR"
+    assert response.data["hata"]["trace_id"] == response["X-Trace-ID"]

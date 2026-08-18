@@ -54,6 +54,18 @@ MODEL_METADATA_PATH = Path(
         REPO_ROOT / "data" / "metadata" / "binary_failure_model.json",
     )
 )
+FAILURE_TYPE_MODEL_ARTIFACT_PATH = Path(
+    os.getenv(
+        "FAILURE_TYPE_MODEL_ARTIFACT_PATH",
+        REPO_ROOT / "ml" / "artifacts" / "failure-type-1.0.0.joblib",
+    )
+)
+FAILURE_TYPE_MODEL_METADATA_PATH = Path(
+    os.getenv(
+        "FAILURE_TYPE_MODEL_METADATA_PATH",
+        REPO_ROOT / "data" / "metadata" / "failure_type_model.json",
+    )
+)
 
 MIDDLEWARE = [
     "apps.core.middleware.TraceIdMiddleware",

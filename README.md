@@ -4,7 +4,7 @@ Bu depo, makinelerin sensör verilerinden arıza riski üreten bakım karar dest
 
 ## Proje durumu
 
-Sprint 9 itibarıyla altyapı, kullanıcı/JWT akışı, merkezi hata sözleşmesi, bakım CRUD API'leri, AI4I veri hattı, eğitilmiş binary model ve checksum doğrulamalı risk tahmin endpoint'i uygulanmıştır. Replay, arıza türü, SHAP, öncelik ve iş emri akışları henüz uygulanmamıştır.
+Sprint 12 itibarıyla altyapı, kullanıcı/JWT akışı, merkezi hata sözleşmesi, bakım CRUD API'leri, AI4I veri hattı ve checksum doğrulamalı hiyerarşik risk/fiziksel arıza tipi endpoint'i uygulanmıştır. Replay, SHAP, öncelik ve iş emri akışları henüz uygulanmamıştır.
 
 ## Kapsam
 
@@ -43,6 +43,7 @@ PDF'deki FastAPI, Streamlit, AI4I, Random Forest, 0.60 eşik değeri ve örnek m
 
 - [Ürün gereksinimleri](docs/PRODUCT_REQUIREMENTS.md)
 - [Mimari](docs/ARCHITECTURE.md)
+- [Hiyerarşik tahmin akışı](docs/HIERARCHICAL_PREDICTION_FLOW.md)
 - [Veri ve ML planı](docs/DATA_AND_ML_PLAN.md)
 - [Güvenlik planı](docs/SECURITY_PLAN.md)
 - [Hata sözleşmesi](docs/ERROR_CONTRACT.md)
@@ -248,6 +249,15 @@ kullanım sınırları [model kartında](docs/MODEL_CARD_FAILURE_TYPE.md) yer al
 `ml/artifacts/failure-type-1.0.0.joblib` pickle tabanlı olduğu için Git dışında
 tutulur; uygulama çalışırken eğitim yapılmaz.
 
+## Sprint 12: hiyerarşik tahmin API'si
+
+Mevcut `POST /api/tahminler/risk/` endpoint'i önce binary riski hesaplar ve yalnız
+risk threshold'u aşıldığında fiziksel arıza tipi modelini çalıştırır. HDF/PWF/OSF
+operasyonel aday, TWF yetersiz destekli deneysel sinyal, RNF ise model dışıdır.
+İki artefakt ayrı checksum doğrulaması ve lazy cache kullanır. Ayrıntılar
+[hiyerarşik tahmin akışında](docs/HIERARCHICAL_PREDICTION_FLOW.md) ve
+[API sözleşmesinde](docs/PREDICTION_API.md) yer alır.
+
 ### Test ve kalite kontrolleri
 
 ```powershell
@@ -275,7 +285,7 @@ varsayılan yapı gereksiz polling kullanmaz.
 
 ### Henüz uygulanmayan özellikler
 
-Arıza türü modeli, SHAP, tahmin kaydı, replay, risk dashboard'u, öncelik motoru,
+SHAP, tahmin kaydı, replay, risk dashboard'u, öncelik motoru,
 karar/iş emri ve ERP entegrasyonu sonraki sprintlerin kapsamındadır.
 
 ## Sprint 2: temel veri modeli
