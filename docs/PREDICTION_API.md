@@ -154,6 +154,8 @@ Makineye bağlı audit kaydı için `POST/GET /api/tahminler/kayitlar/` ve
 snapshot ve hata sözleşmeleri [kalıcı tahmin kayıtları belgesindedir](PREDICTION_RECORDS.md).
 Yeni kayıtlardaki açıklanabilir bakım kararı, formüller, aksiyonlar ve iş kuyruğu
 sıralaması [bakım öncelik motoru belgesinde](MAINTENANCE_PRIORITY_ENGINE.md) tanımlıdır.
+Kararı operasyonel iş emrine dönüştüren endpointler ve audit sözleşmesi
+[iş emri yaşam döngüsü belgesinde](WORK_ORDER_WORKFLOW.md) açıklanır.
 
 Örnek karar bölümü:
 

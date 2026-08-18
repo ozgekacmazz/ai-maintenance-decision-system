@@ -133,3 +133,7 @@ kural motoru yalnız bu snapshot'ları kullanır. Teknik aciliyet, tedarik riski
 öncelik ayrı hesaplanır; karar/gerekçe/aksiyon/uyarı ilişkisel immutable snapshot'ları
 aynı kısa transaction içinde yazılır. Tasarım ve formüller
 [bakım öncelik motoru belgesindedir](MAINTENANCE_PRIORITY_ENGINE.md).
+
+İş emri bu immutable geçmişten ayrı, kontrollü güncellenebilir aggregate'tır. Durum,
+atama ve etkin öncelik yalnız kilitli domain servisleriyle değişir; her değişiklik
+immutable olay üretir. Ayrıntılar [iş emri yaşam döngüsündedir](WORK_ORDER_WORKFLOW.md).

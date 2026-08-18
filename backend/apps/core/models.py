@@ -11,3 +11,26 @@ class ZamanDamgaliModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class ImmutableSnapshotQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValueError("Geçmiş snapshot toplu olarak değiştirilemez.")
+
+    def delete(self):
+        raise ValueError("Geçmiş snapshot toplu olarak silinemez.")
+
+
+class ImmutableSnapshotModel(models.Model):
+    objects = ImmutableSnapshotQuerySet.as_manager()
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValueError("Geçmiş snapshot değiştirilemez.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Geçmiş snapshot silinemez.")

@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from apps.bakim.models import ArizaParcaKurali, Makine, Parca, Stok
+from apps.bakim.models import (
+    ArizaParcaKurali,
+    BakimIsEmri,
+    IsEmriOlayi,
+    Makine,
+    Parca,
+    Stok,
+)
 
 
 @admin.register(Makine)
@@ -34,3 +41,34 @@ class ArizaParcaKuraliAdmin(admin.ModelAdmin):
     search_fields = ("onerilen_aksiyon", "parca__parca_kodu", "parca__ad")
     autocomplete_fields = ("parca",)
     list_select_related = ("parca",)
+
+
+class IsEmriOlayInline(admin.TabularInline):
+    model = IsEmriOlayi
+    extra = 0
+    can_delete = False
+    readonly_fields = tuple(field.name for field in IsEmriOlayi._meta.fields)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(BakimIsEmri)
+class BakimIsEmriAdmin(admin.ModelAdmin):
+    list_display = (
+        "is_emri_numarasi",
+        "makine",
+        "durum",
+        "etkin_oncelik_seviyesi",
+        "manuel_oncelik_override",
+    )
+    list_filter = ("durum", "etkin_oncelik_seviyesi", "manuel_oncelik_override")
+    search_fields = ("is_emri_numarasi", "makine__makine_kodu")
+    readonly_fields = tuple(field.name for field in BakimIsEmri._meta.fields)
+    inlines = (IsEmriOlayInline,)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

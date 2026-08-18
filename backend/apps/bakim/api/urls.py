@@ -3,6 +3,27 @@ from django.urls import path
 from apps.bakim.api import views
 
 urlpatterns = [
+    path("bakim/is-emirleri/", views.IsEmriListesi.as_view(), name="is-emri-listesi"),
+    path(
+        "bakim/is-emirleri/<uuid:pk>/",
+        views.IsEmriDetayi.as_view(),
+        name="is-emri-detayi",
+    ),
+    path(
+        "bakim/is-emirleri/<uuid:pk>/ata/",
+        views.IsEmriAtama.as_view(),
+        name="is-emri-atama",
+    ),
+    path(
+        "bakim/is-emirleri/<uuid:pk>/durum-gecisi/",
+        views.IsEmriDurumGecisi.as_view(),
+        name="is-emri-durum-gecisi",
+    ),
+    path(
+        "bakim/is-emirleri/<uuid:pk>/oncelik-override/",
+        views.IsEmriOncelikOverride.as_view(),
+        name="is-emri-oncelik-override",
+    ),
     path("makineler/", views.MakineListe.as_view(), name="makine-listesi"),
     path("makineler/<int:pk>/", views.MakineDetay.as_view(), name="makine-detayi"),
     path(

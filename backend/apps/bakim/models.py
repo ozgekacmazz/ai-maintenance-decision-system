@@ -1,7 +1,10 @@
+import uuid
+
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
-from apps.core.models import ZamanDamgaliModel
+from apps.core.models import ImmutableSnapshotModel, ZamanDamgaliModel
 
 
 class Makine(ZamanDamgaliModel):
@@ -127,3 +130,152 @@ class ArizaParcaKurali(ZamanDamgaliModel):
     def __str__(self):
         parca = self.parca.parca_kodu if self.parca else "genel"
         return f"{self.ariza_tipi} - {parca}"
+
+
+class BakimIsEmri(models.Model):
+    class Durum(models.TextChoices):
+        ACIK = "ACIK", "Açık"
+        ATANDI = "ATANDI", "Atandı"
+        DEVAM_EDIYOR = "DEVAM_EDIYOR", "Devam ediyor"
+        BEKLEMEDE = "BEKLEMEDE", "Beklemede"
+        TAMAMLANDI = "TAMAMLANDI", "Tamamlandı"
+        IPTAL_EDILDI = "IPTAL_EDILDI", "İptal edildi"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    is_emri_numarasi = models.CharField(max_length=32, unique=True, editable=False)
+    tahmin_kaydi = models.ForeignKey(
+        "tahminler.TahminKaydi", on_delete=models.PROTECT, related_name="is_emirleri"
+    )
+    makine = models.ForeignKey(
+        Makine, on_delete=models.PROTECT, related_name="bakim_is_emirleri"
+    )
+    olusturan = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="olusturdugu_is_emirleri",
+    )
+    atanan_kullanici = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        related_name="atanan_is_emirleri",
+    )
+    durum = models.CharField(max_length=16, choices=Durum.choices, default=Durum.ACIK)
+    baslik = models.CharField(max_length=200)
+    aciklama = models.TextField(max_length=2000)
+    idempotency_key = models.CharField(max_length=128)
+    payload_fingerprint = models.CharField(max_length=64)
+    politika_surumu = models.CharField(max_length=100)
+    kaynak_motor_surumu = models.CharField(max_length=100)
+    kaynak_teknik_aciliyet_skoru = models.FloatField()
+    kaynak_tedarik_riski_skoru = models.FloatField()
+    kaynak_nihai_oncelik_skoru = models.FloatField()
+    kaynak_oncelik_seviyesi = models.CharField(max_length=10)
+    kaynak_ana_aksiyon = models.CharField(max_length=32)
+    kaynak_karar_guveni = models.CharField(max_length=10)
+    kaynak_ana_ariza_tipi = models.CharField(max_length=3, null=True)
+    etkin_oncelik_seviyesi = models.CharField(max_length=10)
+    manuel_oncelik_override = models.BooleanField(default=False)
+    override_nedeni = models.CharField(max_length=500, null=True)
+    hedef_mudahale_zamani = models.DateTimeField()
+    planlanan_baslangic_zamani = models.DateTimeField(null=True)
+    gercek_baslangic_zamani = models.DateTimeField(null=True)
+    tamamlanma_zamani = models.DateTimeField(null=True)
+    iptal_zamani = models.DateTimeField(null=True)
+    tamamlama_notu = models.TextField(max_length=2000, null=True)
+    iptal_nedeni = models.CharField(max_length=500, null=True)
+    bekleme_nedeni = models.CharField(max_length=500, null=True)
+    version = models.PositiveIntegerField(default=1)
+    olusturulma_zamani = models.DateTimeField(auto_now_add=True)
+    guncellenme_zamani = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "bakim_is_emirleri"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("olusturan", "idempotency_key"),
+                name="is_emri_idempotency_benzersiz",
+            ),
+            models.UniqueConstraint(
+                fields=("tahmin_kaydi",),
+                condition=Q(durum__in=("ACIK", "ATANDI", "DEVAM_EDIYOR", "BEKLEMEDE")),
+                name="tahmin_aktif_is_emri_benzersiz",
+            ),
+            models.CheckConstraint(
+                condition=Q(version__gte=1), name="is_emri_version_pozitif"
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    durum__in=(
+                        "ACIK",
+                        "ATANDI",
+                        "DEVAM_EDIYOR",
+                        "BEKLEMEDE",
+                        "TAMAMLANDI",
+                        "IPTAL_EDILDI",
+                    )
+                ),
+                name="is_emri_durum_gecerli",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    kaynak_oncelik_seviyesi__in=("DUSUK", "ORTA", "YUKSEK", "KRITIK")
+                ),
+                name="is_emri_kaynak_oncelik_gecerli",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    etkin_oncelik_seviyesi__in=("DUSUK", "ORTA", "YUKSEK", "KRITIK")
+                ),
+                name="is_emri_etkin_oncelik_gecerli",
+            ),
+        ]
+
+    def __str__(self):
+        return self.is_emri_numarasi
+
+
+class IsEmriOlayi(ImmutableSnapshotModel):
+    class OlayTipi(models.TextChoices):
+        OLUSTURULDU = "OLUSTURULDU", "Oluşturuldu"
+        ATANDI = "ATANDI", "Atandı"
+        DURUM_DEGISTI = "DURUM_DEGISTI", "Durum değişti"
+        BEKLEMEYE_ALINDI = "BEKLEMEYE_ALINDI", "Beklemeye alındı"
+        DEVAM_ETTIRILDI = "DEVAM_ETTIRILDI", "Devam ettirildi"
+        TAMAMLANDI = "TAMAMLANDI", "Tamamlandı"
+        IPTAL_EDILDI = "IPTAL_EDILDI", "İptal edildi"
+        ONCELIK_OVERRIDE_EDILDI = "ONCELIK_OVERRIDE_EDILDI", "Öncelik değiştirildi"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    is_emri = models.ForeignKey(
+        BakimIsEmri, on_delete=models.CASCADE, related_name="olaylar"
+    )
+    olay_tipi = models.CharField(max_length=32, choices=OlayTipi.choices)
+    onceki_durum = models.CharField(max_length=16, null=True)
+    yeni_durum = models.CharField(max_length=16)
+    gerceklestiren = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="is_emri_olaylari",
+    )
+    gerceklestiren_username_snapshot = models.CharField(max_length=150)
+    trace_id = models.CharField(max_length=64)
+    aciklama_snapshot = models.CharField(max_length=2000, null=True)
+    onceki_atanan_username_snapshot = models.CharField(max_length=150, null=True)
+    yeni_atanan_username_snapshot = models.CharField(max_length=150, null=True)
+    onceki_oncelik = models.CharField(max_length=10, null=True)
+    yeni_oncelik = models.CharField(max_length=10, null=True)
+    version = models.PositiveIntegerField()
+    olusturulma_zamani = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "bakim_is_emri_olaylari"
+        ordering = ("version", "olusturulma_zamani", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("is_emri", "version"), name="is_emri_olay_version_benzersiz"
+            ),
+            models.CheckConstraint(
+                condition=Q(version__gte=1), name="is_emri_olay_version_pozitif"
+            ),
+        ]

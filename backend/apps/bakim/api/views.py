@@ -1,9 +1,10 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.bakim import selectors, services
+from apps.bakim import selectors, services, work_order_selectors, work_order_services
 from apps.bakim.api.pagination import BakimSayfalama
 from apps.bakim.api.serializers import (
     AktiflikSerializer,
@@ -20,7 +21,113 @@ from apps.bakim.api.serializers import (
     StokOkumaSerializer,
     StokYazmaSerializer,
 )
+from apps.bakim.api.work_order_serializers import (
+    IsEmriAtamaSerializer,
+    IsEmriDetaySerializer,
+    IsEmriDurumGecisiSerializer,
+    IsEmriFiltreSerializer,
+    IsEmriListeSerializer,
+    IsEmriOlusturmaSerializer,
+    IsEmriOncelikOverrideSerializer,
+)
 from apps.bakim.permissions import BakimApiIzni
+from apps.kullanicilar.models import Kullanici
+
+
+class AktifIsEmriKullanicisi(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and user.is_active
+            and user.rol in {Kullanici.Rol.USER, Kullanici.Rol.ADMIN}
+        )
+
+
+class IsEmriView(APIView):
+    permission_classes = (IsAuthenticated, AktifIsEmriKullanicisi)
+
+    def parse(self, request, serializer_class):
+        serializer = serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data
+
+    def detail(self, pk):
+        return get_object_or_404(work_order_selectors.is_emri_detayi(), pk=pk)
+
+
+class IsEmriListesi(IsEmriView):
+    def get(self, request):
+        serializer = IsEmriFiltreSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        queryset = work_order_selectors.is_emri_listesi(
+            filtreler=serializer.validated_data
+        )
+        paginator = BakimSayfalama()
+        page = paginator.paginate_queryset(queryset, request, self)
+        return paginator.get_paginated_response(
+            IsEmriListeSerializer(page, many=True).data
+        )
+
+    def post(self, request):
+        order, repeated = work_order_services.is_emri_olustur(
+            actor=request.user,
+            trace_id=request.trace_id,
+            veriler=self.parse(request, IsEmriOlusturmaSerializer),
+        )
+        order = self.detail(order.pk)
+        return Response(
+            IsEmriDetaySerializer(order, context={"tekrarlandi": repeated}).data,
+            status=status.HTTP_200_OK if repeated else status.HTTP_201_CREATED,
+        )
+
+
+class IsEmriDetayi(IsEmriView):
+    def get(self, request, pk):
+        return Response(IsEmriDetaySerializer(self.detail(pk)).data)
+
+
+class IsEmriAtama(IsEmriView):
+    def post(self, request, pk):
+        data = self.parse(request, IsEmriAtamaSerializer)
+        work_order_services.is_emri_ata(
+            order_id=pk,
+            actor=request.user,
+            trace_id=request.trace_id,
+            expected_version=data["beklenen_version"],
+            assignee=data["atanan_kullanici"],
+            note=data.get("not"),
+        )
+        return Response(IsEmriDetaySerializer(self.detail(pk)).data)
+
+
+class IsEmriDurumGecisi(IsEmriView):
+    def post(self, request, pk):
+        data = self.parse(request, IsEmriDurumGecisiSerializer)
+        work_order_services.is_emri_durum_gecisi(
+            order_id=pk,
+            actor=request.user,
+            trace_id=request.trace_id,
+            expected_version=data.pop("beklenen_version"),
+            target=data.pop("hedef_durum"),
+            data=data,
+        )
+        return Response(IsEmriDetaySerializer(self.detail(pk)).data)
+
+
+class IsEmriOncelikOverride(IsEmriView):
+    def post(self, request, pk):
+        data = self.parse(request, IsEmriOncelikOverrideSerializer)
+        work_order_services.is_emri_oncelik_override(
+            order_id=pk,
+            actor=request.user,
+            trace_id=request.trace_id,
+            expected_version=data["beklenen_version"],
+            priority=data["etkin_oncelik_seviyesi"],
+            reason=data["override_nedeni"],
+        )
+        return Response(IsEmriDetaySerializer(self.detail(pk)).data)
 
 
 class BakimView(APIView):

@@ -5,29 +5,7 @@ from django.db import models
 from django.db.models import Q
 
 from apps.bakim.models import Makine, Parca
-
-
-class ImmutableSnapshotQuerySet(models.QuerySet):
-    def update(self, **kwargs):
-        raise ValueError("Geçmiş tahmin snapshot'ı toplu olarak değiştirilemez.")
-
-    def delete(self):
-        raise ValueError("Geçmiş tahmin snapshot'ı toplu olarak silinemez.")
-
-
-class ImmutableSnapshotModel(models.Model):
-    objects = ImmutableSnapshotQuerySet.as_manager()
-
-    class Meta:
-        abstract = True
-
-    def save(self, *args, **kwargs):
-        if self.pk and type(self).objects.filter(pk=self.pk).exists():
-            raise ValueError("Geçmiş tahmin snapshot'ı değiştirilemez.")
-        return super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        raise ValueError("Geçmiş tahmin snapshot'ı silinemez.")
+from apps.core.models import ImmutableSnapshotModel
 
 
 class TahminKaydi(ImmutableSnapshotModel):
