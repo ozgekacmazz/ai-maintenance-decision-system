@@ -28,6 +28,9 @@ local_settings.py
 node_modules/
 dist/
 build/
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
 .npm/
 .parcel-cache/
 

@@ -48,3 +48,69 @@ PDF'deki FastAPI, Streamlit, AI4I, Random Forest, 0.60 eşik değeri ve örnek m
 - [Hata sözleşmesi](docs/ERROR_CONTRACT.md)
 - [Terim sözlüğü](docs/TERIM_SOZLUGU.md)
 - [Mimari karar kayıtları](docs/decisions/)
+
+## Sprint 1: çalışan proje altyapısı
+
+Sprint 0 kararları korunarak Django REST Framework, React/TypeScript/Vite ve
+PostgreSQL için Docker Compose ile çalıştırılabilir geliştirme altyapısı eklendi.
+
+### Gereksinimler ve ortam hazırlığı
+
+Docker Desktop ile Docker Compose gereklidir. Depo kökünde örnek ortam dosyasını
+kopyalayın; değerler yalnız yerel geliştirme içindir ve gerçek ortamlarda
+değiştirilmelidir.
+
+```powershell
+Copy-Item .env.example .env
+```
+
+### Docker ile başlatma
+
+```powershell
+docker compose up --build
+```
+
+Servis adresleri:
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- Sağlık kontrolü: http://localhost:8000/api/saglik/
+- PostgreSQL: yerel makinede `localhost:5432`, Docker ağında `db:5432`
+
+Migration çalıştırmak için:
+
+```powershell
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py makemigrations --check --dry-run
+```
+
+### Test ve kalite kontrolleri
+
+```powershell
+docker compose exec backend pytest
+docker compose exec backend ruff check .
+docker compose exec backend ruff format --check .
+docker compose exec frontend npm test -- --run
+docker compose exec frontend npm run lint
+docker compose exec frontend npm run build
+```
+
+Logları izlemek ve servisleri durdurmak için:
+
+```powershell
+docker compose logs -f
+docker compose down
+```
+
+`docker compose down -v` PostgreSQL verisini kalıcı olarak siler; yalnız veriyi
+bilerek sıfırlamak istediğinizde kullanın.
+
+Windows/OneDrive altında dosya değişiklikleri algılanmazsa Docker Desktop dosya
+paylaşım izinlerini kontrol edin. Gerekirse Vite polling ayarı ayrıca açılabilir;
+varsayılan yapı gereksiz polling kullanmaz.
+
+### Henüz uygulanmayan özellikler
+
+Sprint 1 yalnız altyapıyı kapsar. Kimlik doğrulama, kullanıcı ve domain modelleri,
+risk dashboard'u, tahmin/ML, replay, stok, iş emri ve ERP entegrasyonu henüz
+uygulanmamıştır.
