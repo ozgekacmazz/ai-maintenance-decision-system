@@ -1,0 +1,269 @@
+{
+  "analysis_version": "shap-analysis-1.0.0",
+  "created_at": "2026-08-18T16:43:47.255631+00:00",
+  "sample": {
+    "split": "validation",
+    "size": 25,
+    "selection": "seeded_random_without_replacement_then_source_index_sort",
+    "seed": 42
+  },
+  "prepared_source_sha256": "5361bda76962b2d8897470c82d4afde29e56832bc340a4a0555bb43e133fee84",
+  "models": {
+    "binary": {
+      "model_version": "binary-failure-1.0.0",
+      "pipeline_version": "1.0.0",
+      "artifact_sha256": "72f346974938571eabe3d11253697fd86195c4868fd0c1df89d7e8156080cbdf"
+    },
+    "failure_type": {
+      "model_version": "failure-type-1.0.0",
+      "pipeline_version": "1.0.0",
+      "artifact_sha256": "28a2431de2a4347a0ed043fb44bb766deb902d700cc407aedb26565d20613231"
+    }
+  },
+  "feature_names": [
+    "hava_sicakligi_k",
+    "proses_sicakligi_k",
+    "donus_hizi_rpm",
+    "tork_nm",
+    "takim_asinmasi_dk",
+    "proses_hava_sicaklik_farki_k",
+    "acisal_hiz_rad_s",
+    "mekanik_guc_w",
+    "urun_tipi_H",
+    "urun_tipi_L",
+    "urun_tipi_M"
+  ],
+  "global_mean_absolute_shap": {
+    "machine_failure": [
+      {
+        "feature": "proses_hava_sicaklik_farki_k",
+        "mean_abs_shap": 0.014993200367738782
+      },
+      {
+        "feature": "takim_asinmasi_dk",
+        "mean_abs_shap": 0.01448099955974071
+      },
+      {
+        "feature": "donus_hizi_rpm",
+        "mean_abs_shap": 0.012838723673714499
+      },
+      {
+        "feature": "acisal_hiz_rad_s",
+        "mean_abs_shap": 0.010333476923774534
+      },
+      {
+        "feature": "mekanik_guc_w",
+        "mean_abs_shap": 0.007878921906511304
+      },
+      {
+        "feature": "tork_nm",
+        "mean_abs_shap": 0.007534052178771781
+      },
+      {
+        "feature": "hava_sicakligi_k",
+        "mean_abs_shap": 0.006887224697195187
+      },
+      {
+        "feature": "proses_sicakligi_k",
+        "mean_abs_shap": 0.0017549905412544413
+      },
+      {
+        "feature": "urun_tipi_L",
+        "mean_abs_shap": 0.0012222171595900747
+      },
+      {
+        "feature": "urun_tipi_M",
+        "mean_abs_shap": 0.00034377538248375023
+      },
+      {
+        "feature": "urun_tipi_H",
+        "mean_abs_shap": 0.00013037440292145021
+      }
+    ],
+    "TWF": [
+      {
+        "feature": "takim_asinmasi_dk",
+        "mean_abs_shap": 0.004925834913793478
+      },
+      {
+        "feature": "tork_nm",
+        "mean_abs_shap": 0.0012278676512255593
+      },
+      {
+        "feature": "mekanik_guc_w",
+        "mean_abs_shap": 0.001018330666814509
+      },
+      {
+        "feature": "acisal_hiz_rad_s",
+        "mean_abs_shap": 0.0008267684281199593
+      },
+      {
+        "feature": "proses_hava_sicaklik_farki_k",
+        "mean_abs_shap": 0.0007472805089836673
+      },
+      {
+        "feature": "donus_hizi_rpm",
+        "mean_abs_shap": 0.0006071409334060237
+      },
+      {
+        "feature": "hava_sicakligi_k",
+        "mean_abs_shap": 0.0004178936966577476
+      },
+      {
+        "feature": "proses_sicakligi_k",
+        "mean_abs_shap": 0.00041456651826172314
+      },
+      {
+        "feature": "urun_tipi_L",
+        "mean_abs_shap": 0.0002485908327724851
+      },
+      {
+        "feature": "urun_tipi_H",
+        "mean_abs_shap": 0.00024840212882897087
+      },
+      {
+        "feature": "urun_tipi_M",
+        "mean_abs_shap": 0.00022255202444177873
+      }
+    ],
+    "HDF": [
+      {
+        "feature": "proses_hava_sicaklik_farki_k",
+        "mean_abs_shap": 0.01562405688172779
+      },
+      {
+        "feature": "donus_hizi_rpm",
+        "mean_abs_shap": 0.009310987160620045
+      },
+      {
+        "feature": "acisal_hiz_rad_s",
+        "mean_abs_shap": 0.007997232652419941
+      },
+      {
+        "feature": "hava_sicakligi_k",
+        "mean_abs_shap": 0.005896697900299389
+      },
+      {
+        "feature": "proses_sicakligi_k",
+        "mean_abs_shap": 0.0017723409383403423
+      },
+      {
+        "feature": "tork_nm",
+        "mean_abs_shap": 0.001631018686325891
+      },
+      {
+        "feature": "mekanik_guc_w",
+        "mean_abs_shap": 0.001132128691268173
+      },
+      {
+        "feature": "takim_asinmasi_dk",
+        "mean_abs_shap": 0.0005392960277106117
+      },
+      {
+        "feature": "urun_tipi_L",
+        "mean_abs_shap": 0.0002883810688541863
+      },
+      {
+        "feature": "urun_tipi_M",
+        "mean_abs_shap": 0.00016469373092160684
+      },
+      {
+        "feature": "urun_tipi_H",
+        "mean_abs_shap": 1.7714082800916833e-05
+      }
+    ],
+    "PWF": [
+      {
+        "feature": "mekanik_guc_w",
+        "mean_abs_shap": 0.005981892112867485
+      },
+      {
+        "feature": "tork_nm",
+        "mean_abs_shap": 0.0027842877056986942
+      },
+      {
+        "feature": "donus_hizi_rpm",
+        "mean_abs_shap": 0.0005452091847654326
+      },
+      {
+        "feature": "acisal_hiz_rad_s",
+        "mean_abs_shap": 0.00047173305690850385
+      },
+      {
+        "feature": "takim_asinmasi_dk",
+        "mean_abs_shap": 0.00013834535380945892
+      },
+      {
+        "feature": "proses_hava_sicaklik_farki_k",
+        "mean_abs_shap": 0.00012826045017624854
+      },
+      {
+        "feature": "hava_sicakligi_k",
+        "mean_abs_shap": 0.00012421049863777596
+      },
+      {
+        "feature": "proses_sicakligi_k",
+        "mean_abs_shap": 0.00011177913386149612
+      },
+      {
+        "feature": "urun_tipi_M",
+        "mean_abs_shap": 4.549449957677548e-05
+      },
+      {
+        "feature": "urun_tipi_L",
+        "mean_abs_shap": 2.3381548779644623e-05
+      },
+      {
+        "feature": "urun_tipi_H",
+        "mean_abs_shap": 1.0446055798449382e-05
+      }
+    ],
+    "OSF": [
+      {
+        "feature": "takim_asinmasi_dk",
+        "mean_abs_shap": 0.010376538797779363
+      },
+      {
+        "feature": "mekanik_guc_w",
+        "mean_abs_shap": 0.006578597213147752
+      },
+      {
+        "feature": "tork_nm",
+        "mean_abs_shap": 0.004464457269840187
+      },
+      {
+        "feature": "urun_tipi_L",
+        "mean_abs_shap": 0.002131404589350162
+      },
+      {
+        "feature": "donus_hizi_rpm",
+        "mean_abs_shap": 0.0014744944574652194
+      },
+      {
+        "feature": "acisal_hiz_rad_s",
+        "mean_abs_shap": 0.0011654197186844006
+      },
+      {
+        "feature": "proses_sicakligi_k",
+        "mean_abs_shap": 0.0009175210738637475
+      },
+      {
+        "feature": "urun_tipi_M",
+        "mean_abs_shap": 0.0007032128251868406
+      },
+      {
+        "feature": "hava_sicakligi_k",
+        "mean_abs_shap": 0.00034631417332153564
+      },
+      {
+        "feature": "proses_hava_sicaklik_farki_k",
+        "mean_abs_shap": 0.0002998248224128398
+      },
+      {
+        "feature": "urun_tipi_H",
+        "mean_abs_shap": 4.546810302080626e-05
+      }
+    ]
+  },
+  "fingerprint": "361cd55ef489021745549e1f0ccede5aef542c02e49f533242ceae6285d49720"
+}

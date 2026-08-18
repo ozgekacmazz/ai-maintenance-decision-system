@@ -44,6 +44,7 @@ PDF'deki FastAPI, Streamlit, AI4I, Random Forest, 0.60 eşik değeri ve örnek m
 - [Ürün gereksinimleri](docs/PRODUCT_REQUIREMENTS.md)
 - [Mimari](docs/ARCHITECTURE.md)
 - [Hiyerarşik tahmin akışı](docs/HIERARCHICAL_PREDICTION_FLOW.md)
+- [SHAP açıklanabilirlik altyapısı](docs/SHAP_EXPLAINABILITY.md)
 - [Veri ve ML planı](docs/DATA_AND_ML_PLAN.md)
 - [Güvenlik planı](docs/SECURITY_PLAN.md)
 - [Hata sözleşmesi](docs/ERROR_CONTRACT.md)
@@ -257,6 +258,14 @@ operasyonel aday, TWF yetersiz destekli deneysel sinyal, RNF ise model dışıd�
 İki artefakt ayrı checksum doğrulaması ve lazy cache kullanır. Ayrıntılar
 [hiyerarşik tahmin akışında](docs/HIERARCHICAL_PREDICTION_FLOW.md) ve
 [API sözleşmesinde](docs/PREDICTION_API.md) yer alır.
+
+## Sprint 13: doğrulanmış SHAP açıklamaları
+
+Binary risk ve dört fiziksel arıza tipi pipeline'ı için pozitif sınıfı açıklayan,
+SHAP sürüm shape'lerini normalize eden ve tam katkı vektöründe additivity
+doğrulayan ortak ML katmanı eklendi. Validation örneğinden deterministik ve yalnız
+toplulaştırılmış global önem raporu üretilebilir. Django/API entegrasyonu Sprint 14
+kapsamındadır; ayrıntılar [SHAP açıklanabilirlik belgesindedir](docs/SHAP_EXPLAINABILITY.md).
 
 ### Test ve kalite kontrolleri
 
