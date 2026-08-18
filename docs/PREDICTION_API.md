@@ -146,3 +146,9 @@ failure-type modeli yüklenmez. Riskli kayıtta model kullanılamazsa standart `
 döner. HDF/PWF/OSF yalnız threshold aşınca güvenilir adaydır; TWF her riskli
 değerlendirmede yetersiz destekli deneysel sinyal olarak gösterilir. RNF response'a
 girmez. Ayrıntılar [hiyerarşik akış belgesindedir](HIERARCHICAL_PREDICTION_FLOW.md).
+
+## Kalıcı kayıt kaynağı
+
+Makineye bağlı audit kaydı için `POST/GET /api/tahminler/kayitlar/` ve
+`GET /api/tahminler/kayitlar/{uuid}/` kullanılır. İstek, idempotency, filtre,
+snapshot ve hata sözleşmeleri [kalıcı tahmin kayıtları belgesindedir](PREDICTION_RECORDS.md).

@@ -24,7 +24,12 @@ def standart_exception_handler(exc, context):
 
     if isinstance(exc, KaynakCakismasiHatasi):
         return Response(
-            hata_govdesi(status_code=409, trace_id=trace_id),
+            hata_govdesi(
+                status_code=409,
+                trace_id=trace_id,
+                kod=getattr(exc, "kod", None),
+                mesaj=getattr(exc, "mesaj", None),
+            ),
             status=status.HTTP_409_CONFLICT,
         )
     if isinstance(exc, HizmetKullanilamiyorHatasi):

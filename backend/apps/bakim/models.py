@@ -97,6 +97,8 @@ class ArizaParcaKurali(ZamanDamgaliModel):
     )
     onerilen_aksiyon = models.TextField(verbose_name="önerilen aksiyon")
     aktif = models.BooleanField(default=True, verbose_name="aktif")
+    gerekli_miktar = models.PositiveIntegerField(default=1)
+    tercih_sirasi = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         db_table = "ariza_parca_kurallari"
@@ -105,6 +107,12 @@ class ArizaParcaKurali(ZamanDamgaliModel):
         constraints = [
             models.UniqueConstraint(
                 fields=("ariza_tipi", "parca"), name="ariza_parca_cifti_benzersiz"
+            ),
+            models.CheckConstraint(
+                condition=Q(gerekli_miktar__gt=0), name="ariza_kural_miktar_pozitif"
+            ),
+            models.CheckConstraint(
+                condition=Q(tercih_sirasi__gt=0), name="ariza_kural_sira_pozitif"
             ),
             models.UniqueConstraint(
                 fields=("ariza_tipi",),

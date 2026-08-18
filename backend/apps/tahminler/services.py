@@ -355,10 +355,12 @@ def _ariza_tipi_degerlendir(features, model):
 
 
 def hiyerarsik_risk_tahmini_yap(
-    sensor_verisi, *, binary_model=None, failure_type_model=None
+    sensor_verisi, *, binary_model=None, failure_type_model=None, features=None
 ):
     try:
-        features = _ozellikleri_hazirla(sensor_verisi)
+        features = (
+            features if features is not None else _ozellikleri_hazirla(sensor_verisi)
+        )
         binary_snapshot = binary_model or modeli_getir()
         result = _binary_risk_hesapla(features, binary_snapshot)
         if not result["risk_uyarisi"]:

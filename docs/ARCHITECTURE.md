@@ -120,3 +120,10 @@ binary ve label-bazlı explainer cache'leri process-local, ayrı ve thread-safe'
 TWF operasyonel güven semantiğinin tek kaynağı backend serving policy'dir; ML
 katmanı yalnız matematiksel katkı üretir. Ayrıntılar
 [entegrasyon belgesindedir](SHAP_API_INTEGRATION.md).
+
+## Kalıcı karar izi
+
+Stateless inference ile makineye bağlı immutable karar kayıtları ayrıdır. Ana kayıt,
+ilişkisel failure-type/SHAP/ERP snapshot'ları, transaction sınırı ve canlı FK ile
+olay snapshot'ı ayrımı [kalıcı tahmin mimarisi belgesinde](PREDICTION_RECORDS.md)
+açıklanır.

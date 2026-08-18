@@ -70,6 +70,10 @@ değiştirilmelidir.
 Copy-Item .env.example .env
 ```
 
+Kalıcı ve denetlenebilir makine tahminlerinin create/list/detail, idempotency ve ERP
+snapshot sözleşmesi için [kalıcı tahmin kayıtları belgesine](docs/PREDICTION_RECORDS.md)
+bakın. Stateless `/api/tahminler/risk/` veritabanına kayıt yazmaz.
+
 ### Docker ile başlatma
 
 ```powershell
