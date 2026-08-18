@@ -152,6 +152,26 @@ REST endpoint'leri eklendi. USER aktif kayıtları okuyabilir; yalnız ürün ro
 yazabilir ve pasif kayıtları görebilir. Endpoint, filtre ve hata ayrıntıları için
 [bakım API belgesine](docs/MAINTENANCE_API.md) bakın.
 
+## Sprint 7: AI4I veri hazırlama hattı
+
+Resmi UCI AI4I 2020 verisini doğrulayan, profilleyen ve deterministik demo alanlarıyla
+hazırlayan bağımsız `ml/` paketi eklendi. Ham ve işlenmiş CSV dosyaları Git dışındadır;
+ayrıntılar [veri profili](docs/DATASET_PROFILE.md) belgesindedir. Model henüz eğitilmez.
+
+```powershell
+python -m pip install -e ".\ml[dev]"
+$env:PYTHONPATH="ml/src"
+python ml/scripts/inspect_dataset.py
+python ml/scripts/prepare_dataset.py
+pytest ml/tests
+python -m ruff check ml
+python -m ruff format --check ml
+```
+
+Hazırlama çıktısı `data/processed/ai4i2020_prepared.csv`, güvenli metadata çıktısı
+`data/metadata/ai4i2020_prepared.json` konumundadır. Sentetik `machine_id` ve
+`timestamp` yalnız demo/replay içindir; gerçek makine veya temporal bilgi değildir.
+
 ### Test ve kalite kontrolleri
 
 ```powershell

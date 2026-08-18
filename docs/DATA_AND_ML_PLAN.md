@@ -1,5 +1,13 @@
 # Veri ve Makine Öğrenmesi Planı
 
+## Sprint 7 uygulama durumu
+
+AI4I 2020 resmi UCI kaynağından edinilmiş; merkezi veri sözleşmesi, kalite kapısı,
+türetilmiş sıcaklık farkı/mekanik güç özellikleri ve Git dışı hazırlama hattı
+`ml/` altında uygulanmıştır. Gerçek profil sonuçları için [veri profiline](DATASET_PROFILE.md)
+bakın. Model eğitimi, sınıf dengesizliği değerlendirmesi ve nihai split kararı sonraki
+sprint kapsamındadır. Sentetik makine ve zaman alanları temporal kanıt değildir.
+
 ## 1. Durum
 
 Bu belge Sprint 0 planıdır. Dataset indirilmemiş, model eğitilmemiş ve veri hattı geliştirilmemiştir.

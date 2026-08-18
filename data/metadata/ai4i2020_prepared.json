@@ -1,0 +1,33 @@
+{
+  "pipeline_version": "1.0.0",
+  "created_at": "2026-08-18T11:54:09.158576+00:00",
+  "source": "data/raw/ai4i2020.csv",
+  "source_sha256": "dc6630cd9b1f0f853922fad78a1b6436570d3f1ec863f1dd5c4340ac56bc8a8e",
+  "rows": 10000,
+  "columns": 19,
+  "config": {
+    "machine_count": 20,
+    "interval_minutes": 5,
+    "start_time": "2020-01-01T00:00:00+00:00"
+  },
+  "quality_warnings": [
+    {
+      "severity": "warning",
+      "code": "FAILURE_TYPE_WITHOUT_FAILURE",
+      "message": "Ana hedef 0 iken arıza tipi pozitiftir.",
+      "affected_rows": 18
+    },
+    {
+      "severity": "warning",
+      "code": "FAILURE_WITHOUT_TYPE",
+      "message": "Ana hedef 1 iken arıza tipi yoktur.",
+      "affected_rows": 9
+    },
+    {
+      "severity": "warning",
+      "code": "MULTIPLE_FAILURE_TYPES",
+      "message": "Birden fazla arıza tipi olan satırlar vardır.",
+      "affected_rows": 24
+    }
+  ]
+}
