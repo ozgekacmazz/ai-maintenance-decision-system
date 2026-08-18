@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { saglikDurumunuGetir } from '../api/saglik'
 import type { SaglikYaniti } from '../types/saglik'
+import { adminKontrolu } from '../api/auth'
+import { useAuth } from '../app/AuthContext'
 
 export function AltyapiKontrol() {
+  const { kullanici, cikis } = useAuth()
   const [saglik, setSaglik] = useState<SaglikYaniti | null>(null)
   const [yukleniyor, setYukleniyor] = useState(true)
   const [hata, setHata] = useState<string | null>(null)
+  const [adminSonucu, setAdminSonucu] = useState<string | null>(null)
 
   const kontrolEt = useCallback(async () => {
     setYukleniyor(true)
@@ -44,6 +48,7 @@ export function AltyapiKontrol() {
         <p className="urun">AI Destekli Bakım Karar Sistemi</p>
         <h1>Sprint 1 Altyapı Kontrolü</h1>
         <p className="aciklama">Uygulama bileşenlerinin bağlantı durumunu görüntüleyin.</p>
+        <p>Oturum: <strong>{kullanici?.username}</strong> · {kullanici?.rol}</p>
 
         <div className="durum-listesi">
           <DurumSatiri etiket="Frontend" durum="çalışıyor" basarili />
@@ -64,6 +69,9 @@ export function AltyapiKontrol() {
         <button type="button" onClick={() => void kontrolEt()} disabled={yukleniyor}>
           Tekrar dene
         </button>
+        <button className="ikincil" type="button" onClick={() => void adminKontrolu().then((sonuc) => setAdminSonucu(sonuc === 'izinli' ? 'Admin erişimi doğrulandı.' : 'Bu alan için ADMIN rolü gerekiyor.')).catch(() => setAdminSonucu('Kontrol tamamlanamadı.'))}>Admin erişimini kontrol et</button>
+        {adminSonucu && <p role="status">{adminSonucu}</p>}
+        <button className="ikincil" type="button" onClick={() => void cikis()}>Çıkış yap</button>
       </section>
     </main>
   )

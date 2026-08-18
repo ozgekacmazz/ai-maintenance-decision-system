@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AltyapiKontrol } from './AltyapiKontrol'
 
+vi.mock('../app/AuthContext', () => ({
+  useAuth: () => ({ kullanici: { username: 'test', rol: 'USER' }, cikis: vi.fn() }),
+}))
+
 afterEach(() => vi.restoreAllMocks())
 
 describe('AltyapiKontrol', () => {

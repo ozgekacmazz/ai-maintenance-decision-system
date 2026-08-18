@@ -64,3 +64,16 @@ Onay ve ret işlemlerinde tahmin, karar türü, karar veren kullanıcı kimliği
 - Development/demo `seed_admin` parolayı yalnız environment'tan alır, çıktıya
   yazmaz ve tekrar çalıştırmada varsayılan olarak değiştirmez.
 - Ayrıntılı kararlar [rol ve yetki matrisinde](ROLE_PERMISSION_MATRIX.md) bulunur.
+
+## 9. Sprint 4 authentication kontrolleri
+
+- Beş dakikalık access token yalnız frontend belleğinde; bir günlük refresh token
+  yalnız auth path'li HttpOnly cookie içindedir.
+- Login, refresh ve logout CSRF cookie + `X-CSRFToken` ile korunur. Credentialed
+  CORS yalnız izinli frontend origin'ine açıktır.
+- Refresh rotation ve blacklist etkindir. Logout refresh tokenı iptal eder;
+  stateless access token kısa ömrü bitene kadar geçerli kalabilir.
+- Pasif kullanıcı login, refresh ve access-token kullanıcı doğrulamasında
+  reddedilir. 401 authentication, 403 ürün rolü eksikliğidir.
+- Production HTTPS için refresh cookie `Secure=True` olmalıdır. Ayrıntılar
+  [authentication akışında](AUTH_FLOW.md) belgelenmiştir.

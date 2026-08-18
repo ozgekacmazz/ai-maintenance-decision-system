@@ -28,9 +28,13 @@ kavramları birbirine eşitlemez.
 | Django admin | Hayır | Ürün rolü tek başına yetmez | `is_active` + `is_staff`; tam yetki için `is_superuser` | Mevcut |
 
 Pasif kullanıcı yeni oturum açamamalı veya token yenileyememelidir. JWT henüz
-uygulanmadığından bu davranış sonraki authentication katmanında da sunucu tarafında
-zorunlu tutulacaktır. Menü gizlemek güvenlik değildir; her korumalı endpoint
-policy/permission kontrolünü sunucuda yapmalıdır.
+uygulanan authentication katmanında login, refresh ve korumalı endpoint'lerde
+reddedilir. Menü gizlemek güvenlik değildir; her korumalı endpoint
+policy/permission kontrolünü sunucuda yapar. Token yokluğu/geçersizliği HTTP 401,
+kimliği doğrulanmış kullanıcının ürün rolü eksikliği HTTP 403 döndürür.
+
+`GET /api/auth/admin-kontrol/` bu ayrımı doğrulayan server-side endpoint'tir:
+aktif ADMIN 200, USER (superuser olsa bile) 403, tokensız istek 401 alır.
 
 ## İlk admin bootstrap akışı
 

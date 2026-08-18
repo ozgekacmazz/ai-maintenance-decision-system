@@ -114,6 +114,29 @@ dosya veya shell history içine yazmayın. Bu komut yalnız development/demo
 bootstrap içindir; production secret yönetimi değildir. Sprint 3 henüz login,
 JWT veya kullanıcı CRUD API endpoint'i içermez.
 
+## Sprint 4: güvenli authentication
+
+Authentication akışı `GET /api/auth/csrf/` ile başlar. Login kısa ömürlü access
+tokenı JSON gövdesinde, refresh tokenı ise JavaScript'in okuyamadığı HttpOnly
+cookie içinde döndürür. Refresh rotation eski tokenı blacklist eder; logout
+refresh tokenı blacklist edip cookie'yi siler. Ayrıntılı sequence ve tehdit
+sınırları için [authentication akışına](docs/AUTH_FLOW.md) bakın.
+
+Frontend access tokenı yalnız React/modül belleğinde tutar; localStorage,
+sessionStorage veya IndexedDB kullanılmaz. Sayfa yenilemesinde HttpOnly cookie ile
+refresh ve ardından `/me/` çağrısı yapılır. Development'ta cookie `Secure=False`,
+`SameSite=Lax`, `Path=/api/auth/` kullanır. Production HTTPS ortamında
+`JWT_REFRESH_COOKIE_SECURE=True` zorunludur.
+
+F12 Network panelinde access tokenın login/refresh response'unda bulunduğu, fakat
+refresh tokenın JSON'a girmediği doğrulanabilir. Application/Cookies panelinde
+refresh cookie HttpOnly görünmelidir. Token değerlerini console'a, loglara veya
+ekran görüntülerine taşımayın. Süresi dolmuş blacklist kayıtlarının bakımı:
+
+```powershell
+docker compose exec backend python manage.py flushexpiredtokens
+```
+
 ### Test ve kalite kontrolleri
 
 ```powershell

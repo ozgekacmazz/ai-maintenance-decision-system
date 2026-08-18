@@ -15,3 +15,9 @@ h1 { margin: 8px 0; font-size: clamp(1.8rem, 5vw, 2.5rem); line-height: 1.1; }
 .hata { background: #fde8e8; color: #8c2020; }
 button { width: 100%; border: 0; border-radius: 10px; padding: 13px 18px; background: #087e8b; color: white; font: inherit; font-weight: 700; cursor: pointer; }
 button:disabled { opacity: .55; cursor: wait; }
+form { display: grid; gap: 10px; margin-top: 24px; }
+label { font-weight: 700; }
+input { width: 100%; border: 1px solid #b8c9d5; border-radius: 9px; padding: 12px; font: inherit; }
+.parola-alani { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.goz { width: auto; background: #dce9ed; color: #17324d; }
+.ikincil { margin-top: 10px; background: #e4edf2; color: #17324d; }

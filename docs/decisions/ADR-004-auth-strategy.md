@@ -39,3 +39,11 @@ tutulmuştur. Kullanıcı yönetimi servisleri aktif ürün ADMIN kontrolü yapa
 development/demo yöneticisi, environment tabanlı ve idempotent `seed_admin`
 komutuyla staff ve superuser olarak oluşturulabilir. HTTP authentication ve JWT
 bu sprintte henüz uygulanmamıştır.
+
+## Sprint 4 uygulama notu
+
+Simple JWT ile beş dakikalık access ve bir günlük refresh token uygulanmıştır.
+Access yalnız frontend belleğindedir; refresh yalnız CSRF korumalı, HttpOnly auth
+cookie'sindedir. Rotation ve blacklist etkindir. `/me/` kullanıcı durumunun,
+`/admin-kontrol/` ise ürün ADMIN rolünün sunucu tarafındaki kaynağıdır. Production
+HTTPS ve Secure cookie deployment aşamasında zorunludur.
