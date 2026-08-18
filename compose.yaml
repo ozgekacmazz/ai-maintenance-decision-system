@@ -18,12 +18,19 @@ services:
       start_period: 5s
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: sensor-backend
     env_file: .env
+    environment:
+      MODEL_ARTIFACT_PATH: ${MODEL_ARTIFACT_PATH:-/opt/ml/artifacts/binary-failure-1.0.0.joblib}
+      MODEL_METADATA_PATH: ${MODEL_METADATA_PATH:-/data/metadata/binary_failure_model.json}
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
+      - ./ml:/opt/ml:ro
+      - ./data/metadata:/data/metadata:ro
     ports:
       - "8000:8000"
     depends_on:

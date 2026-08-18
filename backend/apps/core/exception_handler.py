@@ -28,8 +28,21 @@ def standart_exception_handler(exc, context):
             status=status.HTTP_409_CONFLICT,
         )
     if isinstance(exc, HizmetKullanilamiyorHatasi):
+        logger.error(
+            "Kontrollü hizmet hatası.",
+            extra={
+                "event": "service_unavailable",
+                "trace_id": trace_id,
+                "exception_type": type(exc).__name__,
+            },
+        )
         return Response(
-            hata_govdesi(status_code=503, trace_id=trace_id),
+            hata_govdesi(
+                status_code=503,
+                trace_id=trace_id,
+                kod=exc.kod,
+                mesaj=exc.mesaj,
+            ),
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 

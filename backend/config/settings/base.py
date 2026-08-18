@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+REPO_ROOT = BASE_DIR.parent
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -38,7 +39,21 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.kullanicilar",
     "apps.bakim",
+    "apps.tahminler",
 ]
+
+MODEL_ARTIFACT_PATH = Path(
+    os.getenv(
+        "MODEL_ARTIFACT_PATH",
+        REPO_ROOT / "ml" / "artifacts" / "binary-failure-1.0.0.joblib",
+    )
+)
+MODEL_METADATA_PATH = Path(
+    os.getenv(
+        "MODEL_METADATA_PATH",
+        REPO_ROOT / "data" / "metadata" / "binary_failure_model.json",
+    )
+)
 
 MIDDLEWARE = [
     "apps.core.middleware.TraceIdMiddleware",

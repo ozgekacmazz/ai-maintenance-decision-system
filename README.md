@@ -1,10 +1,10 @@
 # AI Destekli Bakım Karar Sistemi
 
-Bu depo, makinelerin sensör verilerinden arıza riski ve olası arıza türü üreten; sonucu açıklayan; makine kritikliği, stok ve tedarik bilgileriyle önceliklendiren bir bakım karar destek sisteminin Sprint 0 belgelerini içerir.
+Bu depo, makinelerin sensör verilerinden arıza riski üreten bakım karar destek sisteminin belgelerini, uygulamasını ve ML paketini içerir.
 
 ## Proje durumu
 
-Sprint 0'da gereksinimler, mimari, veri ve makine öğrenmesi yaklaşımı, güvenlik, hata sözleşmesi ve temel teknik kararlar belgelenmiştir. Uygulama, replay akışı, veri hattı ve model henüz geliştirilmemiştir.
+Sprint 9 itibarıyla altyapı, kullanıcı/JWT akışı, merkezi hata sözleşmesi, bakım CRUD API'leri, AI4I veri hattı, eğitilmiş binary model ve checksum doğrulamalı risk tahmin endpoint'i uygulanmıştır. Replay, arıza türü, SHAP, öncelik ve iş emri akışları henüz uygulanmamıştır.
 
 ## Kapsam
 
@@ -188,6 +188,37 @@ Komut sürümlü artefaktı `ml/artifacts/` altında üretir; bu dizin Git dış
 dosyasına yazılır. Joblib artefaktı yalnız güvenilir yerel kaynaktan ve metadata'daki
 SHA-256 doğrulandıktan sonra yüklenmelidir.
 
+## Sprint 9: binary risk tahmin API'si
+
+JWT korumalı `POST /api/tahminler/risk/` endpoint'i kanonik sensör alanlarını
+doğrular, `bakim_ml` paketindeki ortak feature engineering kodunu kullanır ve
+metadata threshold'una göre risk uyarısı döndürür. Model ilk tahmin isteğinde
+checksum, sürüm, feature sırası ve sınıf sözleşmesi doğrulandıktan sonra bellekte
+önbelleğe alınır; uygulama çalışırken model eğitilmez. Ayrıntılar
+[tahmin API belgesindedir](docs/PREDICTION_API.md).
+
+Gerçek `.joblib` dosyası pickle tabanlı güvenlik ve boyut nedenleriyle Git'e
+alınmaz. Yerel AI4I verisi hazırlandıktan sonra güvenilir artefaktı üretmek için:
+
+```powershell
+$env:PYTHONPATH="ml/src"
+python ml/scripts/train_binary_model.py
+```
+
+Docker Compose, `ml/` dizinini salt okunur bağlar. Model dosyası yoksa backend ve
+sağlık endpoint'i çalışmaya devam eder; yalnız tahmin endpoint'i standart `503`
+döndürür. Sprint 9 kontrolleri:
+
+```powershell
+docker compose build backend
+docker compose up -d db backend
+docker compose exec backend python manage.py check
+docker compose exec backend python manage.py makemigrations --check --dry-run
+docker compose exec backend pytest
+docker compose exec backend ruff check .
+docker compose exec backend ruff format --check .
+```
+
 ### Test ve kalite kontrolleri
 
 ```powershell
@@ -215,9 +246,8 @@ varsayılan yapı gereksiz polling kullanmaz.
 
 ### Henüz uygulanmayan özellikler
 
-Sprint 1 yalnız altyapıyı kapsar. Kimlik doğrulama, kullanıcı ve domain modelleri,
-risk dashboard'u, tahmin/ML, replay, stok, iş emri ve ERP entegrasyonu henüz
-uygulanmamıştır.
+Arıza türü modeli, SHAP, tahmin kaydı, replay, risk dashboard'u, öncelik motoru,
+karar/iş emri ve ERP entegrasyonu sonraki sprintlerin kapsamındadır.
 
 ## Sprint 2: temel veri modeli
 

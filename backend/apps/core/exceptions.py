@@ -12,4 +12,10 @@ class KaynakCakismasiHatasi(Exception):
 
 
 class HizmetKullanilamiyorHatasi(Exception):
-    pass
+    kod = "HIZMET_KULLANILAMIYOR"
+    mesaj = "Hizmet geçici olarak kullanılamıyor."
+
+    def __init__(self, mesaj=None, *, kod=None):
+        super().__init__(mesaj or self.mesaj)
+        self.mesaj = mesaj or self.mesaj
+        self.kod = kod or self.kod

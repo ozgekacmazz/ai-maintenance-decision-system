@@ -92,3 +92,13 @@ TWF, HDF, PWF ve OSF için doğrulanmış parça/aksiyon eşlemeleri kullanılac
   [ER diyagramında](ER_DIAGRAM.md) belgelenmiştir.
 - API kullanım senaryoları, authentication ve CRUD uçları Sprint 2 kapsamında
   değildir; mevcut health API değişmeden korunur.
+
+## 11. Sprint 9 ML inference sınırı
+
+`apps.tahminler` HTTP doğrulamasını ve inference servis sınırını bakım CRUD
+modüllerinden ayrı tutar. Servis, dış metadata'yı ve artefakt SHA-256 değerini
+joblib deserialization işleminden önce doğrular; ardından `bakim_ml` paketinin
+güvenilir artefakt ve feature engineering fonksiyonlarını yeniden kullanır.
+Doğrulanmış model process içinde kilitli lazy cache ile bir kez yüklenir.
+Tahmin sonucu bu sprintte veritabanına yazılmaz. Modelin bulunmaması genel sağlık
+kontrolünü düşürmez; tahmin isteği güvenli ve izlenebilir bir `503` alır.
