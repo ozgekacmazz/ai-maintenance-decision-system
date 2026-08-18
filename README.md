@@ -219,6 +219,20 @@ docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 ```
 
+## Sprint 10: arıza tipi etiket analizi
+
+AI4I arıza tipi etiketlerinin multi-label yapısını, RNF tutarsızlığını ve
+mevcut binary split içindeki dağılımı tekrarlanabilir biçimde analiz etmek için:
+
+```powershell
+$env:PYTHONPATH="ml/src"
+python ml/scripts/analyze_failure_labels.py
+```
+
+Sonuçlar [arıza tipi etiket analizi](docs/FAILURE_LABEL_ANALYSIS.md) belgesinde ve
+`data/metadata/failure_label_analysis.json` metadata dosyasında yer alır. Bu
+sprint model eğitmez veya mevcut tahmin API'sini değiştirmez.
+
 ### Test ve kalite kontrolleri
 
 ```powershell

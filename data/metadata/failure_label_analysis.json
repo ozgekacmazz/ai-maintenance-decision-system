@@ -1,0 +1,177 @@
+{
+  "analysis_version": "1.0.0",
+  "created_at": "2026-08-18T14:16:43.082104+00:00",
+  "source_sha256": "dc6630cd9b1f0f853922fad78a1b6436570d3f1ec863f1dd5c4340ac56bc8a8e",
+  "prepared_source_sha256": "5361bda76962b2d8897470c82d4afde29e56832bc340a4a0555bb43e133fee84",
+  "total_rows": 10000,
+  "machine_failure_counts": {
+    "0": 9661,
+    "1": 339
+  },
+  "target_columns": [
+    "TWF",
+    "HDF",
+    "PWF",
+    "OSF",
+    "RNF"
+  ],
+  "label_counts": {
+    "TWF": {
+      "positive": 46,
+      "negative": 9954
+    },
+    "HDF": {
+      "positive": 115,
+      "negative": 9885
+    },
+    "PWF": {
+      "positive": 95,
+      "negative": 9905
+    },
+    "OSF": {
+      "positive": 98,
+      "negative": 9902
+    },
+    "RNF": {
+      "positive": 19,
+      "negative": 9981
+    }
+  },
+  "label_prevalence": {
+    "TWF": 0.0046,
+    "HDF": 0.0115,
+    "PWF": 0.0095,
+    "OSF": 0.0098,
+    "RNF": 0.0019
+  },
+  "label_cardinality": 0.0373,
+  "label_density": 0.00746,
+  "rows_with_no_label": 9652,
+  "rows_with_single_label": 324,
+  "rows_with_multiple_labels": 24,
+  "max_labels_per_row": 3,
+  "label_combinations": {
+    "NONE": 9652,
+    "TWF": 42,
+    "HDF": 106,
+    "PWF": 80,
+    "OSF": 78,
+    "RNF": 18,
+    "TWF+OSF": 2,
+    "TWF+RNF": 1,
+    "HDF+PWF": 3,
+    "HDF+OSF": 6,
+    "PWF+OSF": 11,
+    "TWF+PWF+OSF": 1
+  },
+  "pairwise_cooccurrence": {
+    "TWF+HDF": 0,
+    "TWF+PWF": 1,
+    "TWF+OSF": 3,
+    "TWF+RNF": 1,
+    "HDF+PWF": 3,
+    "HDF+OSF": 6,
+    "HDF+RNF": 0,
+    "PWF+OSF": 12,
+    "PWF+RNF": 0,
+    "OSF+RNF": 0
+  },
+  "machine_failure_consistency": {
+    "machine_failure_0_no_type": 9643,
+    "machine_failure_1_with_type": 330,
+    "machine_failure_1_no_type": 9,
+    "machine_failure_0_with_type": 18,
+    "multiple_types_machine_failure_1": 24,
+    "multiple_types_machine_failure_0": 0
+  },
+  "rnf_analysis": {
+    "positive": 19,
+    "machine_failure_0": 18,
+    "machine_failure_1": 1,
+    "with_other_failure_type": 1
+  },
+  "split": {
+    "train": {
+      "rows": 7000,
+      "machine_failure_positive": 237,
+      "label_positive_counts": {
+        "TWF": 33,
+        "HDF": 82,
+        "PWF": 69,
+        "OSF": 66,
+        "RNF": 15
+      },
+      "multiple_label_rows": 19,
+      "rnf_positive": 15,
+      "machine_failure_1_no_type": 6,
+      "machine_failure_0_with_type": 14
+    },
+    "validation": {
+      "rows": 1500,
+      "machine_failure_positive": 51,
+      "label_positive_counts": {
+        "TWF": 8,
+        "HDF": 12,
+        "PWF": 15,
+        "OSF": 17,
+        "RNF": 3
+      },
+      "multiple_label_rows": 3,
+      "rnf_positive": 3,
+      "machine_failure_1_no_type": 2,
+      "machine_failure_0_with_type": 3
+    },
+    "test": {
+      "rows": 1500,
+      "machine_failure_positive": 51,
+      "label_positive_counts": {
+        "TWF": 5,
+        "HDF": 21,
+        "PWF": 11,
+        "OSF": 15,
+        "RNF": 1
+      },
+      "multiple_label_rows": 2,
+      "rnf_positive": 1,
+      "machine_failure_1_no_type": 1,
+      "machine_failure_0_with_type": 1
+    },
+    "contract": {
+      "random_seed": 42,
+      "strategy": "binary_machine_failure_stratified_70_15_15",
+      "all_rows_once": true
+    }
+  },
+  "recommended_problem_type": "hierarchical_multi_label",
+  "recommended_modeled_labels": [
+    "TWF",
+    "HDF",
+    "PWF",
+    "OSF"
+  ],
+  "excluded_or_policy_labels": {
+    "RNF": "model_disinda_raporla_ve_genel_teknik_incelemeye_yonlendir"
+  },
+  "recommendation_reasons": [
+    "Aynı satırda birden fazla fiziksel arıza tipi bulunabilir.",
+    "RNF az sayıda, ana hedefle büyük ölçüde tutarsız ve rastlantısal semantiklidir.",
+    "Binary risk ve fiziksel arıza tipi kararları ayrı servis aşamaları olmalıdır."
+  ],
+  "warnings": [
+    "Binary stratification, her arıza tipi dağılımını korumaz.",
+    "Az destekli etiketlerde validation ve test PR-AUC/recall yüksek varyanslıdır.",
+    "AI4I sentetik bir veri setidir; saha genellemesi kanıtlanmamıştır."
+  ],
+  "model_feature_columns": [
+    "urun_tipi",
+    "hava_sicakligi_k",
+    "proses_sicakligi_k",
+    "donus_hizi_rpm",
+    "tork_nm",
+    "takim_asinmasi_dk",
+    "proses_hava_sicaklik_farki_k",
+    "acisal_hiz_rad_s",
+    "mekanik_guc_w"
+  ],
+  "analysis_fingerprint_sha256": "03b2fd6a458fd413a3c70293a186153def96320b99185269c9ba0a8de42e058c"
+}
