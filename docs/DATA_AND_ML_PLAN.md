@@ -8,6 +8,17 @@ türetilmiş sıcaklık farkı/mekanik güç özellikleri ve Git dışı hazırl
 bakın. Model eğitimi, sınıf dengesizliği değerlendirmesi ve nihai split kararı sonraki
 sprint kapsamındadır. Sentetik makine ve zaman alanları temporal kanıt değildir.
 
+## Sprint 8 uygulama durumu
+
+Binary `Machine failure` görevi için stratified %70/%15/%15 train/validation/test
+ayrımı ve Logistic Regression/Random Forest için `None` ile `balanced` class-weight
+deneyleri uygulanmıştır. Model validation PR-AUC ile, threshold validation F1'i
+maksimize ederek ve eşitlikte recall'u tercih ederek seçilmiştir. Random Forest
+`class_weight=None` seçilmiş, kilitli test bölümü kararlar sonrasında değerlendirilmiş ve sürümlü
+joblib artefaktı Git dışında üretilmiştir. Sonuçlar [binary model raporunda](BINARY_MODEL_REPORT.md)
+ve makine tarafından okunabilir metadata'da kayıtlıdır. SHAP, tahmin API'si ve
+arıza türü modeli sonraki sprintlerin kapsamındadır.
+
 ## 1. Durum
 
 Bu belge Sprint 0 planıdır. Dataset indirilmemiş, model eğitilmemiş ve veri hattı geliştirilmemiştir.

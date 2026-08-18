@@ -172,6 +172,22 @@ Hazırlama çıktısı `data/processed/ai4i2020_prepared.csv`, güvenli metadata
 `data/metadata/ai4i2020_prepared.json` konumundadır. Sentetik `machine_id` ve
 `timestamp` yalnız demo/replay içindir; gerçek makine veya temporal bilgi değildir.
 
+## Sprint 8: binary arıza modeli
+
+`Machine failure` hedefi için leakage-safe Logistic Regression ve Random Forest
+karşılaştırması, validation tabanlı threshold seçimi ve checksum doğrulamalı model
+artefaktı üretimi eklendi. Sonuçlar ve sınırlar [binary model raporundadır](docs/BINARY_MODEL_REPORT.md).
+
+```powershell
+$env:PYTHONPATH="ml/src"
+python ml/scripts/train_binary_model.py
+```
+
+Komut sürümlü artefaktı `ml/artifacts/` altında üretir; bu dizin Git dışındadır.
+İzlenebilir metrikler ve artefakt checksum'ı `data/metadata/binary_failure_model.json`
+dosyasına yazılır. Joblib artefaktı yalnız güvenilir yerel kaynaktan ve metadata'daki
+SHA-256 doğrulandıktan sonra yüklenmelidir.
+
 ### Test ve kalite kontrolleri
 
 ```powershell

@@ -1,0 +1,257 @@
+{
+  "model_version": "binary-failure-1.0.0",
+  "pipeline_version": "1.0.0",
+  "created_at": "2026-08-18T12:40:29.258679+00:00",
+  "task": "binary_machine_failure",
+  "selected_model": "random_forest_none",
+  "selected_model_family": "RandomForestClassifier",
+  "selected_class_weight": null,
+  "threshold": 0.22958333333333336,
+  "threshold_policy": "maximize_validation_f1_then_recall",
+  "random_seed": 42,
+  "split": {
+    "train": 7000,
+    "validation": 1500,
+    "test": 1500,
+    "stratified": true
+  },
+  "class_counts": {
+    "train": {
+      "0": 6763,
+      "1": 237
+    },
+    "validation": {
+      "0": 1449,
+      "1": 51
+    },
+    "test": {
+      "0": 1449,
+      "1": 51
+    }
+  },
+  "feature_columns": [
+    "urun_tipi",
+    "hava_sicakligi_k",
+    "proses_sicakligi_k",
+    "donus_hizi_rpm",
+    "tork_nm",
+    "takim_asinmasi_dk",
+    "proses_hava_sicaklik_farki_k",
+    "acisal_hiz_rad_s",
+    "mekanik_guc_w"
+  ],
+  "target": "makine_arizasi",
+  "excluded_columns": [
+    "udi",
+    "urun_kodu",
+    "TWF",
+    "HDF",
+    "PWF",
+    "OSF",
+    "RNF",
+    "machine_id",
+    "timestamp"
+  ],
+  "source_sha256": "dc6630cd9b1f0f853922fad78a1b6436570d3f1ec863f1dd5c4340ac56bc8a8e",
+  "candidate_validation": {
+    "logistic_regression_none": {
+      "model_family": "LogisticRegression",
+      "class_weight": null,
+      "hyperparameters": {
+        "class_weight": null,
+        "max_iter": 2000
+      },
+      "validation_pr_auc": 0.4175888366642079,
+      "threshold_0_50": {
+        "precision": 0.6470588235294118,
+        "recall": 0.21568627450980393,
+        "f1": 0.3235294117647059,
+        "pr_auc": 0.4175888366642079,
+        "true_negative": 1443,
+        "false_positive": 6,
+        "false_negative": 40,
+        "true_positive": 11
+      },
+      "fit_seconds": 0.02708909986540675,
+      "inference_seconds": 0.004399499855935574
+    },
+    "logistic_regression_balanced": {
+      "model_family": "LogisticRegression",
+      "class_weight": "balanced",
+      "hyperparameters": {
+        "class_weight": "balanced",
+        "max_iter": 2000
+      },
+      "validation_pr_auc": 0.4010267690352726,
+      "threshold_0_50": {
+        "precision": 0.15234375,
+        "recall": 0.7647058823529411,
+        "f1": 0.254071661237785,
+        "pr_auc": 0.4010267690352726,
+        "true_negative": 1232,
+        "false_positive": 217,
+        "false_negative": 12,
+        "true_positive": 39
+      },
+      "fit_seconds": 0.022621600423008204,
+      "inference_seconds": 0.004065599758177996
+    },
+    "random_forest_none": {
+      "model_family": "RandomForestClassifier",
+      "class_weight": null,
+      "hyperparameters": {
+        "class_weight": null,
+        "n_estimators": 400,
+        "min_samples_leaf": 2
+      },
+      "validation_pr_auc": 0.8283006285417103,
+      "threshold_0_50": {
+        "precision": 0.9354838709677419,
+        "recall": 0.5686274509803921,
+        "f1": 0.7073170731707317,
+        "pr_auc": 0.8283006285417103,
+        "true_negative": 1447,
+        "false_positive": 2,
+        "false_negative": 22,
+        "true_positive": 29
+      },
+      "fit_seconds": 1.696462200023234,
+      "inference_seconds": 0.23126429971307516
+    },
+    "random_forest_balanced": {
+      "model_family": "RandomForestClassifier",
+      "class_weight": "balanced",
+      "hyperparameters": {
+        "class_weight": "balanced",
+        "n_estimators": 400,
+        "min_samples_leaf": 2
+      },
+      "validation_pr_auc": 0.8182136864666475,
+      "threshold_0_50": {
+        "precision": 0.8947368421052632,
+        "recall": 0.6666666666666666,
+        "f1": 0.7640449438202247,
+        "pr_auc": 0.8182136864666475,
+        "true_negative": 1445,
+        "false_positive": 4,
+        "false_negative": 17,
+        "true_positive": 34
+      },
+      "fit_seconds": 2.4182470999658108,
+      "inference_seconds": 0.1963615003041923
+    }
+  },
+  "threshold_comparison": {
+    "fixed_0_50": {
+      "threshold": 0.5,
+      "precision": 0.9354838709677419,
+      "recall": 0.5686274509803921,
+      "f1": 0.7073170731707317,
+      "pr_auc": 0.8283006285417104,
+      "true_negative": 1447,
+      "false_positive": 2,
+      "false_negative": 22,
+      "true_positive": 29,
+      "predicted_positive_count": 31
+    },
+    "fixed_0_60": {
+      "threshold": 0.6,
+      "precision": 1.0,
+      "recall": 0.5490196078431373,
+      "f1": 0.7088607594936709,
+      "pr_auc": 0.8283006285417104,
+      "true_negative": 1449,
+      "false_positive": 0,
+      "false_negative": 23,
+      "true_positive": 28,
+      "predicted_positive_count": 28
+    },
+    "max_validation_f1": {
+      "threshold": 0.22958333333333336,
+      "precision": 0.8367346938775511,
+      "recall": 0.803921568627451,
+      "f1": 0.82,
+      "pr_auc": 0.8283006285417104,
+      "true_negative": 1441,
+      "false_positive": 8,
+      "false_negative": 10,
+      "true_positive": 41,
+      "predicted_positive_count": 49
+    },
+    "recall_focused": {
+      "threshold": 0.005625,
+      "precision": 0.13352272727272727,
+      "recall": 0.9215686274509803,
+      "f1": 0.23325062034739455,
+      "pr_auc": 0.8283006285417104,
+      "true_negative": 1144,
+      "false_positive": 305,
+      "false_negative": 4,
+      "true_positive": 47,
+      "predicted_positive_count": 352
+    },
+    "hypothetical_cost_5_to_1": {
+      "threshold": 0.22958333333333336,
+      "precision": 0.8367346938775511,
+      "recall": 0.803921568627451,
+      "f1": 0.82,
+      "pr_auc": 0.8283006285417104,
+      "true_negative": 1441,
+      "false_positive": 8,
+      "false_negative": 10,
+      "true_positive": 41,
+      "predicted_positive_count": 49
+    }
+  },
+  "selected_validation_metrics": {
+    "precision": 0.8367346938775511,
+    "recall": 0.803921568627451,
+    "f1": 0.82,
+    "pr_auc": 0.8283006285417104,
+    "true_negative": 1441,
+    "false_positive": 8,
+    "false_negative": 10,
+    "true_positive": 41
+  },
+  "test_metrics": {
+    "precision": 0.7666666666666667,
+    "recall": 0.9019607843137255,
+    "f1": 0.8288288288288288,
+    "pr_auc": 0.9193019954095005,
+    "true_negative": 1435,
+    "false_positive": 14,
+    "false_negative": 5,
+    "true_positive": 46
+  },
+  "quality_warnings": [
+    {
+      "severity": "warning",
+      "code": "FAILURE_TYPE_WITHOUT_FAILURE",
+      "message": "Ana hedef 0 iken arıza tipi pozitiftir.",
+      "affected_rows": 18
+    },
+    {
+      "severity": "warning",
+      "code": "FAILURE_WITHOUT_TYPE",
+      "message": "Ana hedef 1 iken arıza tipi yoktur.",
+      "affected_rows": 9
+    },
+    {
+      "severity": "warning",
+      "code": "MULTIPLE_FAILURE_TYPES",
+      "message": "Birden fazla arıza tipi olan satırlar vardır.",
+      "affected_rows": 24
+    }
+  ],
+  "runtime": {
+    "python": "3.12.6",
+    "numpy": "2.4.4",
+    "scikit_learn": "1.8.0",
+    "joblib": "1.5.3"
+  },
+  "artifact": {
+    "relative_path": "ml/artifacts/binary-failure-1.0.0.joblib",
+    "sha256": "72f346974938571eabe3d11253697fd86195c4868fd0c1df89d7e8156080cbdf",
+    "size_bytes": 1390499
+  }
+}
