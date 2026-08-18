@@ -7,10 +7,15 @@ from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 
 from apps.bakim.models import ArizaParcaKurali, Makine
-from apps.tahminler.exceptions import IdempotencyCakismasiHatasi
+from apps.tahminler.decision_engine import bakim_karari_hesapla
+from apps.tahminler.exceptions import IdempotencyCakismasiHatasi, KararMotoruHatasi
 from apps.tahminler.models import (
     ArizaTipiSnapshot,
+    BakimKarariSnapshot,
     ErpSnapshot,
+    KararAksiyonuSnapshot,
+    KararGerekcesiSnapshot,
+    KararUyarisiSnapshot,
     ShapEtkisiSnapshot,
     TahminKaydi,
 )
@@ -72,6 +77,8 @@ def _shap_kaydet(*, tahmin, explanation, ariza_tipi=None):
 
 
 def _ariza_ve_erp_kaydet(*, tahmin, evaluation):
+    failure_snapshots = []
+    erp_snapshots = []
     items = [
         (item, True, index)
         for index, item in enumerate(evaluation["guvenilir_adaylar"], start=1)
@@ -94,6 +101,7 @@ def _ariza_ve_erp_kaydet(*, tahmin, evaluation):
             siralama=order,
             base_value=explanation["base_value"] if explanation else None,
         )
+        failure_snapshots.append(snapshot)
         _shap_kaydet(tahmin=tahmin, explanation=explanation, ariza_tipi=snapshot)
         if not snapshot.esik_asildi:
             continue
@@ -115,24 +123,93 @@ def _ariza_ve_erp_kaydet(*, tahmin, evaluation):
                 total = stock.adet
                 minimum = stock.minimum_stok
                 lead_days = stock.tedarik_gun
-            ErpSnapshot.objects.create(
-                tahmin=tahmin,
-                ariza_tipi=snapshot,
-                parca=rule.parca,
-                parca_kodu_snapshot=rule.parca.parca_kodu,
-                parca_adi_snapshot=rule.parca.ad,
-                gerekli_miktar=rule.gerekli_miktar,
-                stok_durumu=stock_status,
-                toplam_stok=total,
-                kullanilabilir_stok=total,
-                minimum_stok=minimum,
-                tedarik_gun=lead_days,
-                stok_yeterli=(
-                    total >= rule.gerekli_miktar if total is not None else False
-                ),
-                deneysel=not trusted,
-                onerilen_aksiyon_snapshot=rule.onerilen_aksiyon,
+            erp_snapshots.append(
+                ErpSnapshot.objects.create(
+                    tahmin=tahmin,
+                    ariza_tipi=snapshot,
+                    parca=rule.parca,
+                    parca_kodu_snapshot=rule.parca.parca_kodu,
+                    parca_adi_snapshot=rule.parca.ad,
+                    gerekli_miktar=rule.gerekli_miktar,
+                    stok_durumu=stock_status,
+                    toplam_stok=total,
+                    kullanilabilir_stok=total,
+                    minimum_stok=minimum,
+                    tedarik_gun=lead_days,
+                    stok_yeterli=(
+                        total >= rule.gerekli_miktar if total is not None else False
+                    ),
+                    deneysel=not trusted,
+                    onerilen_aksiyon_snapshot=rule.onerilen_aksiyon,
+                )
             )
+    return failure_snapshots, erp_snapshots
+
+
+def _karar_kaydet(*, tahmin, failure_snapshots, erp_snapshots):
+    engine_input = {
+        "risk_orani": tahmin.risk_orani,
+        "risk_uyarisi": tahmin.risk_uyarisi,
+        "kritiklik_snapshot": tahmin.kritiklik_snapshot,
+        "belirsiz_fiziksel_tip": tahmin.belirsiz_fiziksel_tip,
+        "ariza_tipleri": [
+            {
+                "kod": item.kod,
+                "esik_asildi": item.esik_asildi,
+                "operasyonel_kullanima_uygun": item.operasyonel_kullanima_uygun,
+                "guvenilir_aday": item.guvenilir_aday,
+                "siralama": item.siralama,
+            }
+            for item in failure_snapshots
+        ],
+        "erp_snapshotlari": [
+            {
+                "parca_kodu_snapshot": item.parca_kodu_snapshot,
+                "gerekli_miktar": item.gerekli_miktar,
+                "stok_durumu": item.stok_durumu,
+                "kullanilabilir_stok": item.kullanilabilir_stok,
+                "minimum_stok": item.minimum_stok,
+                "tedarik_gun": item.tedarik_gun,
+                "stok_yeterli": item.stok_yeterli,
+            }
+            for item in erp_snapshots
+            if not item.deneysel
+        ],
+    }
+    try:
+        result = bakim_karari_hesapla(engine_input)
+    except Exception as exc:
+        raise KararMotoruHatasi() from exc
+    decision = BakimKarariSnapshot.objects.create(
+        tahmin=tahmin,
+        motor_surumu=result["motor_surumu"],
+        teknik_aciliyet_skoru=result["teknik_aciliyet_skoru"],
+        tedarik_riski_skoru=result["tedarik_riski_skoru"],
+        nihai_oncelik_skoru=result["nihai_oncelik_skoru"],
+        oncelik_seviyesi=result["oncelik_seviyesi"],
+        ana_aksiyon=result["ana_aksiyon"],
+        ana_ariza_tipi=result["ana_ariza_tipi"],
+        karar_guveni=result["karar_guveni"],
+    )
+    for index, reason in enumerate(result["gerekceler"], start=1):
+        KararGerekcesiSnapshot.objects.create(
+            karar=decision,
+            kod=reason["kod"],
+            mesaj_snapshot=reason["mesaj"],
+            etki=reason["etki"],
+            puan_etkisi=reason["puan_etkisi"],
+            sira=index,
+        )
+    for index, action in enumerate(result["destekleyici_aksiyonlar"], start=1):
+        KararAksiyonuSnapshot.objects.create(karar=decision, aksiyon=action, sira=index)
+    for index, warning in enumerate(result["uyarilar"], start=1):
+        KararUyarisiSnapshot.objects.create(
+            karar=decision,
+            kod=warning["kod"],
+            mesaj_snapshot=warning["mesaj"],
+            sira=index,
+        )
+    return decision
 
 
 def _kaydi_yaz(
@@ -185,7 +262,14 @@ def _kaydi_yaz(
         ),
     )
     _shap_kaydet(tahmin=tahmin, explanation=explainability["risk_aciklamasi"])
-    _ariza_ve_erp_kaydet(tahmin=tahmin, evaluation=evaluation)
+    failure_snapshots, erp_snapshots = _ariza_ve_erp_kaydet(
+        tahmin=tahmin, evaluation=evaluation
+    )
+    _karar_kaydet(
+        tahmin=tahmin,
+        failure_snapshots=failure_snapshots,
+        erp_snapshots=erp_snapshots,
+    )
     return tahmin
 
 

@@ -2,6 +2,10 @@
 
 Bu depo, makinelerin sensör verilerinden arıza riski üreten bakım karar destek sisteminin belgelerini, uygulamasını ve ML paketini içerir.
 
+Kalıcı tahminler ayrıca saf, versiyonlu ve açıklanabilir bir kural motoruyla teknik
+aciliyet, tedarik riski ve bakım önceliği snapshot'ı üretir. Formüller ve güvenlik
+sınırları [bakım öncelik motoru belgesinde](docs/MAINTENANCE_PRIORITY_ENGINE.md) yer alır.
+
 ## Proje durumu
 
 Sprint 12 itibarıyla altyapı, kullanıcı/JWT akışı, merkezi hata sözleşmesi, bakım CRUD API'leri, AI4I veri hattı ve checksum doğrulamalı hiyerarşik risk/fiziksel arıza tipi endpoint'i uygulanmıştır. Replay, SHAP, öncelik ve iş emri akışları henüz uygulanmamıştır.

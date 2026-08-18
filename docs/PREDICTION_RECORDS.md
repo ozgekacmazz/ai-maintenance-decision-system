@@ -43,17 +43,24 @@ uygulama katmanında kapalıdır; admin de salt okunurdur. `create` ve `bulk_cre
 ilk snapshot üretimi için açıktır. Raw SQL ve doğrudan veritabanı yöneticisi bu
 uygulama katmanı korumasının dışındadır ve ayrı DB yetkilendirmesi gerektirir.
 
-## Liste ve detay
+## Bakım kararı, liste ve detay
+
+Yeni kayıtlarda versiyonlu bakım kararı aynı transaction içinde immutable snapshot
+olarak oluşturulur. Detay tam karar, gerekçe, uyarı ve destekleyici aksiyonları;
+liste nihai skor, seviye, ana aksiyon ve karar güvenini taşır. Sprint 15 kayıtlarında
+karar bulunmayabilir ve bu alanlar `null` döner. Politika ve formüller
+[bakım öncelik motoru belgesindedir](MAINTENANCE_PRIORITY_ENGINE.md).
 
 Liste `sayfa` ve `sayfa_boyutu` ile sayfalanır; `makine_id`, `risk_uyarisi`,
-`kaynak`, `olcum_zamani_baslangic`, `olcum_zamani_bitis` ve güvenilir `ariza_tipi`
-filtrelerini kabul eder. Varsayılan sıra en yeni ölçüm, oluşturma zamanı ve UUID'dir.
+`kaynak`, `olcum_zamani_baslangic`, `olcum_zamani_bitis`, güvenilir `ariza_tipi`,
+karar enumları ve nihai skor aralığı filtrelerini kabul eder. Varsayılan iş kuyruğu
+nihai skor ve teknik aciliyet azalan, ölçüm zamanı artan, UUID sırasıdır.
 Liste yalnız özet taşır; detay sensör, model/threshold, SHAP, failure-type ve ERP
 snapshot'larını verir. Trace ID standart hata ve başarı izleme sözleşmesini korur.
 
 ## Kapsam sınırı ve F12 kontrolü
 
-Öncelik Sprint 16'ya, iş emri Sprint 17'ye, replay motoru Sprint 18'e bırakılmıştır.
+İş emri ve stok değişikliği kapsam dışıdır; replay motoru sonraki sprinte bırakılmıştır.
 F12'de ilk POST `201`, aynı istek `200`/aynı ID, farklı payload `409`, sayfalı liste,
 child detayları, SHAP/ERP snapshot'ları, model sürümü/threshold, trace ID,
 `PATCH`/`DELETE` için `405`, response süresi ve boyutu kontrol edilmelidir.

@@ -4,9 +4,11 @@ import re
 from bakim_ml.data_contract import ALLOWED_PRODUCT_TYPES
 from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.fields import empty
 
 from apps.tahminler.models import (
     ArizaTipiSnapshot,
+    BakimKarariSnapshot,
     ErpSnapshot,
     ShapEtkisiSnapshot,
     TahminKaydi,
@@ -112,21 +114,67 @@ class TahminKaydiYazmaSerializer(serializers.Serializer):
         return value
 
 
+class SorguBooleanField(serializers.BooleanField):
+    default_empty_html = empty
+
+
 class TahminKaydiFiltreSerializer(serializers.Serializer):
     makine_id = serializers.IntegerField(required=False, min_value=1)
-    risk_uyarisi = serializers.BooleanField(required=False)
+    risk_uyarisi = SorguBooleanField(required=False)
     kaynak = serializers.ChoiceField(required=False, choices=TahminKaydi.Kaynak.choices)
     olcum_zamani_baslangic = serializers.DateTimeField(required=False)
     olcum_zamani_bitis = serializers.DateTimeField(required=False)
     ariza_tipi = serializers.ChoiceField(
         required=False, choices=ArizaTipiSnapshot.Kod.choices
     )
+    oncelik_seviyesi = serializers.ChoiceField(
+        required=False, choices=BakimKarariSnapshot.OncelikSeviyesi.choices
+    )
+    ana_aksiyon = serializers.ChoiceField(
+        required=False, choices=BakimKarariSnapshot.Aksiyon.choices
+    )
+    karar_guveni = serializers.ChoiceField(
+        required=False, choices=BakimKarariSnapshot.KararGuveni.choices
+    )
+    minimum_nihai_skor = serializers.FloatField(
+        required=False, min_value=0, max_value=100
+    )
+    maksimum_nihai_skor = serializers.FloatField(
+        required=False, min_value=0, max_value=100
+    )
+    sirala = serializers.ChoiceField(
+        required=False,
+        choices=(
+            "nihai_oncelik",
+            "-nihai_oncelik",
+            "olcum_zamani",
+            "-olcum_zamani",
+            "risk_orani",
+            "-risk_orani",
+            "makine_kritiklik",
+            "-makine_kritiklik",
+        ),
+    )
+
+    def to_internal_value(self, data):
+        unexpected = sorted(set(data) - set(self.fields) - {"sayfa", "sayfa_boyutu"})
+        if unexpected:
+            raise serializers.ValidationError(
+                {field: ["Beklenmeyen filtre alanı."] for field in unexpected}
+            )
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         start = attrs.get("olcum_zamani_baslangic")
         end = attrs.get("olcum_zamani_bitis")
         if start and end and start > end:
             raise serializers.ValidationError("Baslangic bitisten sonra olamaz.")
+        minimum = attrs.get("minimum_nihai_skor")
+        maximum = attrs.get("maksimum_nihai_skor")
+        if minimum is not None and maximum is not None and minimum > maximum:
+            raise serializers.ValidationError(
+                "Minimum nihai skor maksimumdan büyük olamaz."
+            )
         return attrs
 
 
@@ -137,11 +185,15 @@ class ShapEtkisiSerializer(serializers.ModelSerializer):
 
 
 class ArizaTipiSerializer(serializers.ModelSerializer):
-    shap_etkileri = ShapEtkisiSerializer(many=True)
+    shap_etkileri = serializers.SerializerMethodField()
 
     class Meta:
         model = ArizaTipiSnapshot
         exclude = ("tahmin",)
+
+    def get_shap_etkileri(self, obj):
+        items = self.context.get("shap_by_failure", {}).get(obj.pk, ())
+        return ShapEtkisiSerializer(items, many=True).data
 
 
 class ErpSnapshotSerializer(serializers.ModelSerializer):
@@ -152,11 +204,53 @@ class ErpSnapshotSerializer(serializers.ModelSerializer):
         exclude = ("tahmin", "parca")
 
 
+class KararGerekcesiSerializer(serializers.Serializer):
+    kod = serializers.CharField()
+    mesaj = serializers.CharField(source="mesaj_snapshot")
+    etki = serializers.CharField()
+    puan_etkisi = serializers.FloatField(allow_null=True)
+
+
+class KararUyarisiSerializer(serializers.Serializer):
+    kod = serializers.CharField()
+    mesaj = serializers.CharField(source="mesaj_snapshot")
+
+
+class BakimKarariSerializer(serializers.ModelSerializer):
+    gerekceler = KararGerekcesiSerializer(many=True)
+    destekleyici_aksiyonlar = serializers.SerializerMethodField()
+    uyarilar = KararUyarisiSerializer(many=True)
+
+    class Meta:
+        model = BakimKarariSnapshot
+        fields = (
+            "motor_surumu",
+            "teknik_aciliyet_skoru",
+            "tedarik_riski_skoru",
+            "nihai_oncelik_skoru",
+            "oncelik_seviyesi",
+            "ana_aksiyon",
+            "destekleyici_aksiyonlar",
+            "ana_ariza_tipi",
+            "karar_guveni",
+            "gerekceler",
+            "uyarilar",
+            "olusturulma_zamani",
+        )
+
+    def get_destekleyici_aksiyonlar(self, obj):
+        return [item.aksiyon for item in obj.destekleyici_aksiyonlar.all()]
+
+
 class TahminKaydiListeSerializer(serializers.ModelSerializer):
     makine = serializers.SerializerMethodField()
     olusturan = serializers.SerializerMethodField()
     en_yuksek_guvenilir_ariza_tipi = serializers.SerializerMethodField()
     erp_snapshot_var = serializers.SerializerMethodField()
+    nihai_oncelik_skoru = serializers.SerializerMethodField()
+    oncelik_seviyesi = serializers.SerializerMethodField()
+    ana_aksiyon = serializers.SerializerMethodField()
+    karar_guveni = serializers.SerializerMethodField()
 
     class Meta:
         model = TahminKaydi
@@ -172,6 +266,10 @@ class TahminKaydiListeSerializer(serializers.ModelSerializer):
             "olusturan",
             "trace_id",
             "erp_snapshot_var",
+            "nihai_oncelik_skoru",
+            "oncelik_seviyesi",
+            "ana_aksiyon",
+            "karar_guveni",
         )
 
     def get_makine(self, obj):
@@ -191,15 +289,38 @@ class TahminKaydiListeSerializer(serializers.ModelSerializer):
     def get_erp_snapshot_var(self, obj):
         return obj.erp_snapshot_var
 
+    def _decision(self, obj):
+        try:
+            return obj.bakim_karari
+        except BakimKarariSnapshot.DoesNotExist:
+            return None
+
+    def get_nihai_oncelik_skoru(self, obj):
+        decision = self._decision(obj)
+        return decision.nihai_oncelik_skoru if decision else None
+
+    def get_oncelik_seviyesi(self, obj):
+        decision = self._decision(obj)
+        return decision.oncelik_seviyesi if decision else None
+
+    def get_ana_aksiyon(self, obj):
+        decision = self._decision(obj)
+        return decision.ana_aksiyon if decision else None
+
+    def get_karar_guveni(self, obj):
+        decision = self._decision(obj)
+        return decision.karar_guveni if decision else None
+
 
 class TahminKaydiDetaySerializer(serializers.ModelSerializer):
     tekrarlandi = serializers.SerializerMethodField()
     makine = serializers.SerializerMethodField()
     olusturan = serializers.SerializerMethodField()
     tahmin = serializers.SerializerMethodField()
-    ariza_tipleri = ArizaTipiSerializer(many=True)
+    ariza_tipleri = serializers.SerializerMethodField()
     shap_etkileri = serializers.SerializerMethodField()
     erp_snapshotlari = ErpSnapshotSerializer(many=True)
+    bakim_karari = serializers.SerializerMethodField()
 
     class Meta:
         model = TahminKaydi
@@ -222,6 +343,7 @@ class TahminKaydiDetaySerializer(serializers.ModelSerializer):
             "erp_snapshotlari",
             "olusturan",
             "trace_id",
+            "bakim_karari",
         )
 
     def get_tekrarlandi(self, obj):
@@ -249,4 +371,25 @@ class TahminKaydiDetaySerializer(serializers.ModelSerializer):
         }
 
     def get_shap_etkileri(self, obj):
-        return ShapEtkisiSerializer(obj.root_shap_etkileri, many=True).data
+        return ShapEtkisiSerializer(
+            [item for item in obj.tum_shap_etkileri if item.ariza_tipi_id is None],
+            many=True,
+        ).data
+
+    def get_ariza_tipleri(self, obj):
+        by_failure = {}
+        for item in obj.tum_shap_etkileri:
+            if item.ariza_tipi_id is not None:
+                by_failure.setdefault(item.ariza_tipi_id, []).append(item)
+        return ArizaTipiSerializer(
+            obj.ariza_tipleri.all(),
+            many=True,
+            context={"shap_by_failure": by_failure},
+        ).data
+
+    def get_bakim_karari(self, obj):
+        try:
+            decision = obj.bakim_karari
+        except BakimKarariSnapshot.DoesNotExist:
+            return None
+        return BakimKarariSerializer(decision).data

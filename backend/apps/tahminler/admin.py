@@ -2,7 +2,11 @@ from django.contrib import admin
 
 from apps.tahminler.models import (
     ArizaTipiSnapshot,
+    BakimKarariSnapshot,
     ErpSnapshot,
+    KararAksiyonuSnapshot,
+    KararGerekcesiSnapshot,
+    KararUyarisiSnapshot,
     ShapEtkisiSnapshot,
     TahminKaydi,
 )
@@ -27,3 +31,7 @@ class TahminKaydiAdmin(SaltOkunurSnapshotAdmin):
 admin.site.register(ArizaTipiSnapshot, SaltOkunurSnapshotAdmin)
 admin.site.register(ShapEtkisiSnapshot, SaltOkunurSnapshotAdmin)
 admin.site.register(ErpSnapshot, SaltOkunurSnapshotAdmin)
+admin.site.register(BakimKarariSnapshot, SaltOkunurSnapshotAdmin)
+admin.site.register(KararGerekcesiSnapshot, SaltOkunurSnapshotAdmin)
+admin.site.register(KararAksiyonuSnapshot, SaltOkunurSnapshotAdmin)
+admin.site.register(KararUyarisiSnapshot, SaltOkunurSnapshotAdmin)

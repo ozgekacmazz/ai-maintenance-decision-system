@@ -152,3 +152,42 @@ girmez. Ayrıntılar [hiyerarşik akış belgesindedir](HIERARCHICAL_PREDICTION_
 Makineye bağlı audit kaydı için `POST/GET /api/tahminler/kayitlar/` ve
 `GET /api/tahminler/kayitlar/{uuid}/` kullanılır. İstek, idempotency, filtre,
 snapshot ve hata sözleşmeleri [kalıcı tahmin kayıtları belgesindedir](PREDICTION_RECORDS.md).
+Yeni kayıtlardaki açıklanabilir bakım kararı, formüller, aksiyonlar ve iş kuyruğu
+sıralaması [bakım öncelik motoru belgesinde](MAINTENANCE_PRIORITY_ENGINE.md) tanımlıdır.
+
+Örnek karar bölümü:
+
+```json
+{
+  "bakim_karari": {
+    "motor_surumu": "maintenance-priority-1.0.0",
+    "teknik_aciliyet_skoru": 89.0,
+    "tedarik_riski_skoru": 5.0,
+    "nihai_oncelik_skoru": 72.2,
+    "oncelik_seviyesi": "YUKSEK",
+    "ana_aksiyon": "ONCELIKLI_BAKIM_PLANLA",
+    "destekleyici_aksiyonlar": [],
+    "ana_ariza_tipi": "HDF",
+    "karar_guveni": "YUKSEK",
+    "gerekceler": [
+      {
+        "kod": "MODEL_RISKI",
+        "mesaj": "Model risk olasılığı teknik aciliyete katkı sağladı.",
+        "etki": "ARTIRDI",
+        "puan_etkisi": 44.0
+      }
+    ],
+    "uyarilar": [
+      {
+        "kod": "INSAN_ONAYI_GEREKLI",
+        "mesaj": "Nihai operasyonel karar yetkili bakım personeline aittir."
+      }
+    ],
+    "olusturulma_zamani": "2026-08-18T10:00:00Z"
+  }
+}
+```
+
+Karar motoru hatası iç ayrıntı sızdırmadan `503
+KARAR_MOTORU_KULLANILAMIYOR` döner; transaction'da hiçbir snapshot bırakılmaz ve
+body `trace_id` ile `X-Trace-ID` eşleşir.

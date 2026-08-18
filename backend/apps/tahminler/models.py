@@ -220,3 +220,192 @@ class ErpSnapshot(ImmutableSnapshotModel):
                 name="tahmin_erp_tedarik_negatif_degil",
             ),
         ]
+
+
+class BakimKarariSnapshot(ImmutableSnapshotModel):
+    class OncelikSeviyesi(models.TextChoices):
+        DUSUK = "DUSUK", "Düşük"
+        ORTA = "ORTA", "Orta"
+        YUKSEK = "YUKSEK", "Yüksek"
+        KRITIK = "KRITIK", "Kritik"
+
+    class KararGuveni(models.TextChoices):
+        YUKSEK = "YUKSEK", "Yüksek"
+        ORTA = "ORTA", "Orta"
+        DUSUK = "DUSUK", "Düşük"
+
+    class Aksiyon(models.TextChoices):
+        IZLEMEYE_DEVAM = "IZLEMEYE_DEVAM", "İzlemeye devam"
+        PLANLI_KONTROL = "PLANLI_KONTROL", "Planlı kontrol"
+        TEKNIK_INCELEME = "TEKNIK_INCELEME", "Teknik inceleme"
+        ONCELIKLI_BAKIM_PLANLA = "ONCELIKLI_BAKIM_PLANLA", "Öncelikli bakım planla"
+        ACIL_TEKNIK_DEGERLENDIRME = (
+            "ACIL_TEKNIK_DEGERLENDIRME",
+            "Acil teknik değerlendirme",
+        )
+        STOK_VERISINI_DOGRULA = "STOK_VERISINI_DOGRULA", "Stok verisini doğrula"
+        TEDARIK_SURECINI_BASLAT = (
+            "TEDARIK_SURECINI_BASLAT",
+            "Tedarik sürecini başlat",
+        )
+
+    tahmin = models.OneToOneField(
+        TahminKaydi, on_delete=models.CASCADE, related_name="bakim_karari"
+    )
+    motor_surumu = models.CharField(max_length=100)
+    teknik_aciliyet_skoru = models.FloatField()
+    tedarik_riski_skoru = models.FloatField()
+    nihai_oncelik_skoru = models.FloatField()
+    oncelik_seviyesi = models.CharField(max_length=10, choices=OncelikSeviyesi.choices)
+    ana_aksiyon = models.CharField(max_length=32, choices=Aksiyon.choices)
+    ana_ariza_tipi = models.CharField(
+        max_length=3, choices=ArizaTipiSnapshot.Kod.choices, null=True
+    )
+    karar_guveni = models.CharField(max_length=10, choices=KararGuveni.choices)
+    olusturulma_zamani = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "bakim_karari_snapshotlari"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    teknik_aciliyet_skoru__gte=0, teknik_aciliyet_skoru__lte=100
+                ),
+                name="karar_teknik_skor_0_100",
+            ),
+            models.CheckConstraint(
+                condition=Q(tedarik_riski_skoru__gte=0, tedarik_riski_skoru__lte=100),
+                name="karar_tedarik_skor_0_100",
+            ),
+            models.CheckConstraint(
+                condition=Q(nihai_oncelik_skoru__gte=0, nihai_oncelik_skoru__lte=100),
+                name="karar_nihai_skor_0_100",
+            ),
+            models.CheckConstraint(
+                condition=Q(ana_ariza_tipi__isnull=True)
+                | Q(ana_ariza_tipi__in=("HDF", "PWF", "OSF")),
+                name="karar_ana_ariza_guvenilir",
+            ),
+            models.CheckConstraint(
+                condition=Q(oncelik_seviyesi__in=("DUSUK", "ORTA", "YUKSEK", "KRITIK")),
+                name="karar_oncelik_gecerli",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    ana_aksiyon__in=(
+                        "IZLEMEYE_DEVAM",
+                        "PLANLI_KONTROL",
+                        "TEKNIK_INCELEME",
+                        "ONCELIKLI_BAKIM_PLANLA",
+                        "ACIL_TEKNIK_DEGERLENDIRME",
+                        "STOK_VERISINI_DOGRULA",
+                        "TEDARIK_SURECINI_BASLAT",
+                    )
+                ),
+                name="karar_ana_aksiyon_gecerli",
+            ),
+            models.CheckConstraint(
+                condition=Q(karar_guveni__in=("YUKSEK", "ORTA", "DUSUK")),
+                name="karar_guveni_gecerli",
+            ),
+        ]
+
+
+class KararGerekcesiSnapshot(ImmutableSnapshotModel):
+    class Etki(models.TextChoices):
+        ARTIRDI = "ARTIRDI", "Artırdı"
+        AZALTTI = "AZALTTI", "Azalttı"
+        NOTR = "NOTR", "Nötr"
+
+    karar = models.ForeignKey(
+        BakimKarariSnapshot, on_delete=models.CASCADE, related_name="gerekceler"
+    )
+    kod = models.CharField(max_length=50)
+    mesaj_snapshot = models.CharField(max_length=300)
+    etki = models.CharField(max_length=10, choices=Etki.choices)
+    puan_etkisi = models.FloatField(null=True)
+    sira = models.PositiveSmallIntegerField()
+
+    class Meta:
+        db_table = "karar_gerekcesi_snapshotlari"
+        ordering = ("sira", "kod")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("karar", "sira"), name="karar_gerekce_sira_benzersiz"
+            ),
+            models.UniqueConstraint(
+                fields=("karar", "kod"), name="karar_gerekce_kod_benzersiz"
+            ),
+            models.CheckConstraint(
+                condition=Q(sira__gte=1), name="karar_gerekce_sira_pozitif"
+            ),
+            models.CheckConstraint(
+                condition=Q(etki__in=("ARTIRDI", "AZALTTI", "NOTR")),
+                name="karar_gerekce_etki_gecerli",
+            ),
+        ]
+
+
+class KararAksiyonuSnapshot(ImmutableSnapshotModel):
+    karar = models.ForeignKey(
+        BakimKarariSnapshot,
+        on_delete=models.CASCADE,
+        related_name="destekleyici_aksiyonlar",
+    )
+    aksiyon = models.CharField(
+        max_length=32, choices=BakimKarariSnapshot.Aksiyon.choices
+    )
+    sira = models.PositiveSmallIntegerField()
+
+    class Meta:
+        db_table = "karar_aksiyonu_snapshotlari"
+        ordering = ("sira", "aksiyon")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("karar", "sira"), name="karar_aksiyon_sira_benzersiz"
+            ),
+            models.UniqueConstraint(
+                fields=("karar", "aksiyon"), name="karar_aksiyon_kod_benzersiz"
+            ),
+            models.CheckConstraint(
+                condition=Q(sira__gte=1), name="karar_aksiyon_sira_pozitif"
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    aksiyon__in=(
+                        "IZLEMEYE_DEVAM",
+                        "PLANLI_KONTROL",
+                        "TEKNIK_INCELEME",
+                        "ONCELIKLI_BAKIM_PLANLA",
+                        "ACIL_TEKNIK_DEGERLENDIRME",
+                        "STOK_VERISINI_DOGRULA",
+                        "TEDARIK_SURECINI_BASLAT",
+                    )
+                ),
+                name="karar_destek_aksiyon_gecerli",
+            ),
+        ]
+
+
+class KararUyarisiSnapshot(ImmutableSnapshotModel):
+    karar = models.ForeignKey(
+        BakimKarariSnapshot, on_delete=models.CASCADE, related_name="uyarilar"
+    )
+    kod = models.CharField(max_length=50)
+    mesaj_snapshot = models.CharField(max_length=300)
+    sira = models.PositiveSmallIntegerField()
+
+    class Meta:
+        db_table = "karar_uyarisi_snapshotlari"
+        ordering = ("sira", "kod")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("karar", "sira"), name="karar_uyari_sira_benzersiz"
+            ),
+            models.UniqueConstraint(
+                fields=("karar", "kod"), name="karar_uyari_kod_benzersiz"
+            ),
+            models.CheckConstraint(
+                condition=Q(sira__gte=1), name="karar_uyari_sira_pozitif"
+            ),
+        ]

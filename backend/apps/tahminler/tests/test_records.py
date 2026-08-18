@@ -13,10 +13,14 @@ from rest_framework.test import APIClient
 
 from apps.bakim.models import ArizaParcaKurali, Makine, Parca, Stok
 from apps.kullanicilar.models import Kullanici
+from apps.tahminler.decision_engine import bakim_karari_hesapla
 from apps.tahminler.exceptions import ModelHizmetiHatasi
 from apps.tahminler.models import (
     ArizaTipiSnapshot,
+    BakimKarariSnapshot,
     ErpSnapshot,
+    KararAksiyonuSnapshot,
+    KararGerekcesiSnapshot,
     ShapEtkisiSnapshot,
     TahminKaydi,
 )
@@ -172,17 +176,25 @@ def test_active_roles_create_persistent_prediction(client, machine, role):
 
 def test_idempotent_repeat_returns_same_record_without_inference(client, user, machine):
     request = payload(machine)
-    with patch(
-        "apps.tahminler.record_services.hiyerarsik_risk_tahmini_yap",
-        return_value=result(),
-    ) as inference:
+    with (
+        patch(
+            "apps.tahminler.record_services.hiyerarsik_risk_tahmini_yap",
+            return_value=result(),
+        ) as inference,
+        patch(
+            "apps.tahminler.record_services.bakim_karari_hesapla",
+            wraps=bakim_karari_hesapla,
+        ) as decision_engine,
+    ):
         first = client.post(URL, request, format="json")
         second = client.post(URL, request, format="json")
     assert (first.status_code, second.status_code) == (201, 200)
     assert first.data["id"] == second.data["id"]
     assert second.data["tekrarlandi"] is True
     assert inference.call_count == 1
+    assert decision_engine.call_count == 1
     assert TahminKaydi.objects.count() == 1
+    assert first.data["bakim_karari"] == second.data["bakim_karari"]
 
 
 def test_same_key_different_payload_is_safe_conflict(client, user, machine):
@@ -408,6 +420,28 @@ def test_erp_failure_rolls_back_main_and_all_children(client, user, machine):
     assert ShapEtkisiSnapshot.objects.count() == 0
 
 
+def test_decision_failure_is_safe_503_and_rolls_back_everything(client, user, machine):
+    with (
+        patch(
+            "apps.tahminler.record_services.hiyerarsik_risk_tahmini_yap",
+            return_value=result(),
+        ),
+        patch(
+            "apps.tahminler.record_services.bakim_karari_hesapla",
+            side_effect=RuntimeError("decision internals"),
+        ),
+    ):
+        response = client.post(
+            URL, payload(machine), format="json", HTTP_X_TRACE_ID="decision-trace"
+        )
+    assert response.status_code == 503
+    assert response.data["hata"]["kod"] == "KARAR_MOTORU_KULLANILAMIYOR"
+    assert response.data["hata"]["trace_id"] == "decision-trace"
+    assert "internals" not in str(response.data)
+    assert TahminKaydi.objects.count() == 0
+    assert BakimKarariSnapshot.objects.count() == 0
+
+
 def test_fingerprint_is_order_independent_and_float_deterministic(machine):
     now = timezone.now()
     first = payload_fingerprint(
@@ -523,6 +557,27 @@ def test_snapshot_instance_and_queryset_mutation_are_blocked(user, machine):
         TahminKaydi.objects.filter(pk=record.pk).delete()
 
 
+def test_decision_snapshot_instance_and_queryset_mutation_are_blocked(user, machine):
+    record = TahminKaydi.objects.create(**record_values(user, machine))
+    decision = BakimKarariSnapshot.objects.create(
+        tahmin=record,
+        motor_surumu="v",
+        teknik_aciliyet_skoru=10,
+        tedarik_riski_skoru=20,
+        nihai_oncelik_skoru=12,
+        oncelik_seviyesi="DUSUK",
+        ana_aksiyon="IZLEMEYE_DEVAM",
+        karar_guveni="ORTA",
+    )
+    decision.nihai_oncelik_skoru = 90
+    with pytest.raises(ValueError):
+        decision.save()
+    with pytest.raises(ValueError):
+        BakimKarariSnapshot.objects.filter(pk=decision.pk).update(
+            nihai_oncelik_skoru=90
+        )
+
+
 def test_machine_and_user_deletion_are_protected(user, machine):
     TahminKaydi.objects.create(**record_values(user, machine))
     with pytest.raises(ProtectedError):
@@ -591,6 +646,7 @@ def test_concurrent_duplicate_requests_create_one_postgresql_record():
         ).count()
         == 1
     )
+    assert BakimKarariSnapshot.objects.filter(tahmin__makine=machine).count() == 1
 
 
 def test_stateless_endpoint_does_not_create_record(client, user):
@@ -603,6 +659,134 @@ def test_stateless_endpoint_does_not_create_record(client, user):
             == 200
         )
     assert TahminKaydi.objects.count() == 0
+    assert BakimKarariSnapshot.objects.count() == 0
+
+
+def test_new_record_returns_full_decision_snapshot(client, user, machine):
+    with patch(
+        "apps.tahminler.record_services.hiyerarsik_risk_tahmini_yap",
+        return_value=result(),
+    ):
+        response = client.post(URL, payload(machine), format="json")
+    decision = response.data["bakim_karari"]
+    assert response.status_code == 201
+    assert decision["motor_surumu"] == "maintenance-priority-1.0.0"
+    assert decision["ana_ariza_tipi"] == "HDF"
+    assert decision["uyarilar"]
+    assert decision["gerekceler"]
+
+
+def test_legacy_record_without_decision_serializes_safe_null(client, user, machine):
+    record = TahminKaydi.objects.create(**record_values(user, machine))
+    response = client.get(f"{URL}{record.pk}/")
+    assert response.status_code == 200
+    assert response.data["bakim_karari"] is None
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("teknik_aciliyet_skoru", -1),
+        ("tedarik_riski_skoru", 101),
+        ("nihai_oncelik_skoru", 101),
+    ),
+)
+def test_decision_score_database_constraints(user, machine, field, value):
+    record = TahminKaydi.objects.create(**record_values(user, machine))
+    values = {
+        "tahmin": record,
+        "motor_surumu": "v",
+        "teknik_aciliyet_skoru": 10,
+        "tedarik_riski_skoru": 20,
+        "nihai_oncelik_skoru": 12,
+        "oncelik_seviyesi": "DUSUK",
+        "ana_aksiyon": "IZLEMEYE_DEVAM",
+        "karar_guveni": "ORTA",
+        field: value,
+    }
+    with pytest.raises(IntegrityError), transaction.atomic():
+        BakimKarariSnapshot.objects.create(**values)
+
+
+def test_decision_child_order_and_code_are_unique(user, machine):
+    record = TahminKaydi.objects.create(**record_values(user, machine))
+    decision = BakimKarariSnapshot.objects.create(
+        tahmin=record,
+        motor_surumu="v",
+        teknik_aciliyet_skoru=10,
+        tedarik_riski_skoru=20,
+        nihai_oncelik_skoru=12,
+        oncelik_seviyesi="DUSUK",
+        ana_aksiyon="IZLEMEYE_DEVAM",
+        karar_guveni="ORTA",
+    )
+    KararGerekcesiSnapshot.objects.create(
+        karar=decision, kod="MODEL_RISKI", mesaj_snapshot="Risk", etki="ARTIRDI", sira=1
+    )
+    with pytest.raises(IntegrityError), transaction.atomic():
+        KararGerekcesiSnapshot.objects.create(
+            karar=decision, kod="BASKA", mesaj_snapshot="Başka", etki="NOTR", sira=1
+        )
+    KararAksiyonuSnapshot.objects.create(
+        karar=decision, aksiyon="STOK_VERISINI_DOGRULA", sira=1
+    )
+    with pytest.raises(IntegrityError), transaction.atomic():
+        KararAksiyonuSnapshot.objects.create(
+            karar=decision, aksiyon="TEDARIK_SURECINI_BASLAT", sira=1
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("oncelik_seviyesi", "GECERSIZ"),
+        ("ana_aksiyon", "GECERSIZ"),
+        ("karar_guveni", "GECERSIZ"),
+    ),
+)
+def test_decision_choice_constraints_reject_invalid_values(user, machine, field, value):
+    record = TahminKaydi.objects.create(**record_values(user, machine))
+    values = {
+        "tahmin": record,
+        "motor_surumu": "v",
+        "teknik_aciliyet_skoru": 10,
+        "tedarik_riski_skoru": 20,
+        "nihai_oncelik_skoru": 12,
+        "oncelik_seviyesi": "DUSUK",
+        "ana_aksiyon": "IZLEMEYE_DEVAM",
+        "karar_guveni": "ORTA",
+        field: value,
+    }
+    with pytest.raises(IntegrityError), transaction.atomic():
+        BakimKarariSnapshot.objects.create(**values)
+
+
+def test_decision_filters_ordering_and_unknown_query_validation(client, user, machine):
+    with patch(
+        "apps.tahminler.record_services.hiyerarsik_risk_tahmini_yap",
+        return_value=result(),
+    ):
+        created = client.post(URL, payload(machine), format="json")
+    decision = created.data["bakim_karari"]
+    response = client.get(
+        URL,
+        {
+            "oncelik_seviyesi": decision["oncelik_seviyesi"],
+            "ana_aksiyon": decision["ana_aksiyon"],
+            "karar_guveni": decision["karar_guveni"],
+            "minimum_nihai_skor": decision["nihai_oncelik_skoru"],
+            "maksimum_nihai_skor": decision["nihai_oncelik_skoru"],
+            "sirala": "-nihai_oncelik",
+        },
+    )
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    assert (
+        response.data["results"][0]["nihai_oncelik_skoru"]
+        == decision["nihai_oncelik_skoru"]
+    )
+    assert client.get(URL, {"sirala": "unsafe"}).status_code == 400
+    assert client.get(URL, {"bilinmeyen": "x"}).status_code == 400
 
 
 def test_list_and_detail_have_bounded_query_counts(

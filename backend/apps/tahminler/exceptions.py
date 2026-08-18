@@ -9,3 +9,8 @@ class ModelHizmetiHatasi(HizmetKullanilamiyorHatasi):
 class IdempotencyCakismasiHatasi(KaynakCakismasiHatasi):
     kod = "IDEMPOTENCY_CAKISMASI"
     mesaj = "Idempotency anahtarı farklı bir istek için kullanılmış."
+
+
+class KararMotoruHatasi(HizmetKullanilamiyorHatasi):
+    kod = "KARAR_MOTORU_KULLANILAMIYOR"
+    mesaj = "Bakım karar hizmeti geçici olarak kullanılamıyor."

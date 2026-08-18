@@ -127,3 +127,9 @@ Stateless inference ile makineye bağlı immutable karar kayıtları ayrıdır. 
 ilişkisel failure-type/SHAP/ERP snapshot'ları, transaction sınırı ve canlı FK ile
 olay snapshot'ı ayrımı [kalıcı tahmin mimarisi belgesinde](PREDICTION_RECORDS.md)
 açıklanır.
+
+Kalıcı tahmin oluşturulurken DB ve request bağımsız `maintenance-priority-1.0.0`
+kural motoru yalnız bu snapshot'ları kullanır. Teknik aciliyet, tedarik riski ve nihai
+öncelik ayrı hesaplanır; karar/gerekçe/aksiyon/uyarı ilişkisel immutable snapshot'ları
+aynı kısa transaction içinde yazılır. Tasarım ve formüller
+[bakım öncelik motoru belgesindedir](MAINTENANCE_PRIORITY_ENGINE.md).
