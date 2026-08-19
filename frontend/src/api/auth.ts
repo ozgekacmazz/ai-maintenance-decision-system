@@ -73,6 +73,9 @@ export async function accessTokeniYenile(): Promise<string> {
 export async function kimlikliIstek(path: string, init: RequestInit = {}, tekrar = true): Promise<Response> {
   const headers = new Headers(init.headers)
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+  if (typeof init.body === 'string' && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
   let response: Response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include' })

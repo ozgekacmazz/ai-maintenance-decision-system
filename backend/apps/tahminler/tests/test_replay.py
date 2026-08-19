@@ -190,7 +190,8 @@ def test_binary_and_label_metrics_are_deterministic_and_safe():
                 "TWF": 0,
                 "RNF": 0,
             },
-            "risk_uyarisi": True,
+            "risk_orani": 0.9,
+            "binary_threshold": 0.5,
             "predicted_labels": {"HDF"},
         },
         {
@@ -202,13 +203,22 @@ def test_binary_and_label_metrics_are_deterministic_and_safe():
                 "TWF": 1,
                 "RNF": 1,
             },
-            "risk_uyarisi": True,
+            "risk_orani": 0.8,
+            "binary_threshold": 0.5,
             "predicted_labels": {"TWF"},
         },
     ]
     original = deepcopy(records)
     result = replay_metrics(records)
-    assert tuple(result["binary"][key] for key in ("tn", "fp", "fn", "tp")) == (
+    assert tuple(
+        result["binary"]["confusion_matrix"][key]
+        for key in (
+            "true_negative",
+            "false_positive",
+            "false_negative",
+            "true_positive",
+        )
+    ) == (
         0,
         1,
         0,
@@ -229,6 +239,31 @@ def test_create_is_deterministic_bounded_and_has_no_leakage(admin, machine):
     assert set(items[0].sensor_snapshot) == set(SENSOR_FIELDS)
     assert set(items[0].ground_truth_snapshot) == set(GROUND_TRUTH_FIELDS)
     assert session.olaylar.get().olay_tipi == "OTURUM_OLUSTURULDU"
+
+
+def test_idempotent_public_creation_reuses_same_real_session(admin, machine):
+    from apps.tahminler.replay_services import (
+        replay_butunlugunu_dogrula,
+        replay_olustur,
+    )
+
+    data = create_body(machine, 3)
+    with patch(
+        "apps.tahminler.replay_services._load_selected",
+        return_value=(frame(3), "a" * 64),
+    ):
+        first = replay_olustur(
+            actor=admin, trace_id="seed-1", data=data, idempotent=True
+        )
+        second = replay_olustur(
+            actor=admin, trace_id="seed-2", data=data, idempotent=True
+        )
+
+    assert first.pk == second.pk
+    assert ReplayOturumu.objects.count() == 1
+    assert replay_butunlugunu_dogrula(first) == first.toplam_oge == 3
+    assert first.durum == ReplayOturumu.Durum.HAZIR
+    assert first.ogeler.filter(tahmin_kaydi__isnull=False).count() == 0
 
 
 def test_admin_mutations_user_read_and_auth(admin, user, machine):
@@ -756,21 +791,24 @@ def test_metric_predicted_positive_policy_and_positive_values():
             "TWF": 1,
             "RNF": 1,
         },
-        "risk_uyarisi": True,
+        "risk_orani": 0.9,
+        "binary_threshold": 0.5,
         "predicted_labels": {"HDF", "TWF"},
     }
     result = replay_metrics([record])
     assert result["binary"] == {
-        "tn": 0,
-        "fp": 0,
-        "fn": 0,
-        "tp": 1,
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0,
         "support": 1,
         "predicted_positive": 1,
-        "accuracy": 1.0,
+        "confusion_matrix": {
+            "true_negative": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_positive": 1,
+        },
+        "pr_auc": 1.0,
     }
     assert result["failure_types"]["HDF"]["tp"] == 1
     assert result["failure_types"]["TWF"]["tp"] == 1
@@ -817,6 +855,8 @@ def test_list_detail_item_and_metrics_query_bounds_with_success_relations(
     created = create_session(admin, machine, 10)
     session = ReplayOturumu.objects.get(pk=created.data["id"])
     _attach_successful_items(session, admin, machine, 10)
+    session.durum = ReplayOturumu.Durum.TAMAMLANDI
+    session.save(update_fields=("durum",))
     client = client_for(admin)
     with CaptureQueriesContext(connection) as list_queries:
         assert client.get(URL).status_code == 200
@@ -824,7 +864,7 @@ def test_list_detail_item_and_metrics_query_bounds_with_success_relations(
         response = client.get(f"{URL}{session.pk}/")
     with CaptureQueriesContext(connection) as item_queries:
         assert client.get(f"{URL}{session.pk}/ogeler/").status_code == 200
-    assert response.data["metrikler"]["evaluated_count"] == 10
+    assert response.data["metrikler"]["degerlendirilen_oge_sayisi"] == 10
     assert (len(list_queries), len(detail_queries), len(item_queries)) == (2, 4, 6)
 
 
@@ -1094,8 +1134,10 @@ def test_failed_items_are_excluded_from_detail_metrics(admin, machine):
     first.save()
     second.durum = "BASARISIZ"
     second.save()
+    session.durum = ReplayOturumu.Durum.TAMAMLANDI
+    session.save(update_fields=("durum",))
     response = client_for(admin).get(f"{URL}{session.pk}/")
-    assert response.data["metrikler"]["evaluated_count"] == 1
+    assert response.data["metrikler"]["degerlendirilen_oge_sayisi"] == 1
 
 
 def test_detail_metric_uses_reliable_physical_and_experimental_twf_policy(
@@ -1137,6 +1179,8 @@ def test_detail_metric_uses_reliable_physical_and_experimental_twf_policy(
     }
     item.durum, item.tahmin_kaydi = "BASARILI", made
     item.save()
+    session.durum = ReplayOturumu.Durum.TAMAMLANDI
+    session.save(update_fields=("durum",))
     metrics = client_for(admin).get(f"{URL}{session.pk}/").data["metrikler"]
     assert metrics["failure_types"]["HDF"]["predicted_positive"] == 0
     assert metrics["failure_types"]["HDF"]["fn"] == 1
