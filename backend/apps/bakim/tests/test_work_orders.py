@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.bakim.exceptions import EszamanliGuncellemeHatasi, IsEmriCakismasiHatasi
-from apps.bakim.models import BakimIsEmri, IsEmriOlayi, Makine
+from apps.bakim.models import BakimIsEmri, IsEmriOlayi, Makine, Parca
 from apps.bakim.work_order_policy import (
     ACTIVE_STATES,
     ALLOWED_TRANSITIONS,
@@ -24,7 +24,12 @@ from apps.bakim.work_order_services import (
     is_emri_olustur,
 )
 from apps.kullanicilar.models import Kullanici
-from apps.tahminler.models import BakimKarariSnapshot, TahminKaydi
+from apps.tahminler.models import (
+    ArizaTipiSnapshot,
+    BakimKarariSnapshot,
+    ErpSnapshot,
+    TahminKaydi,
+)
 
 pytestmark = pytest.mark.django_db
 URL = "/api/bakim/is-emirleri/"
@@ -371,6 +376,54 @@ def test_list_detail_filters_unknown_and_methods(user, prediction):
         )
 
 
+def test_list_returns_action_and_deterministic_erp_snapshots(user, prediction):
+    failure = ArizaTipiSnapshot.objects.create(
+        tahmin=prediction,
+        kod="OSF",
+        olasilik=0.9,
+        threshold=0.5,
+        esik_asildi=True,
+        operasyonel_kullanima_uygun=True,
+        guvenilir_aday=True,
+        siralama=1,
+    )
+    for code, name, amount in (("PRC-B", "Rulman B", 1), ("PRC-A", "Rulman A", 2)):
+        part = Parca.objects.create(parca_kodu=code, ad=name)
+        ErpSnapshot.objects.create(
+            tahmin=prediction,
+            ariza_tipi=failure,
+            parca=part,
+            parca_kodu_snapshot=code,
+            parca_adi_snapshot=name,
+            gerekli_miktar=amount,
+            stok_durumu="MEVCUT",
+            stok_yeterli=True,
+            deneysel=False,
+            onerilen_aksiyon_snapshot="Parçayı kontrol et",
+        )
+    created = create_order(user, prediction)
+    client = client_for(user)
+
+    listing = client.get(URL)
+    detail = client.get(f"{URL}{created.data['id']}/")
+    row = listing.data["results"][0]
+
+    assert row["ana_aksiyon"] == detail.data["kaynak_karar"]["ana_aksiyon"]
+    assert row["erp_ozeti"] == detail.data["erp_ozeti"]
+    assert [item["parca_kodu"] for item in row["erp_ozeti"]] == ["PRC-A", "PRC-B"]
+    assert row["erp_ozeti"][0]["gerekli_miktar"] == 2
+    assert row["etkin_oncelik_seviyesi"] == "KRITIK"
+
+
+def test_list_returns_safe_empty_erp_contract(user, prediction):
+    create_order(user, prediction)
+
+    row = client_for(user).get(URL).data["results"][0]
+
+    assert row["ana_aksiyon"] == "ACIL_TEKNIK_DEGERLENDIRME"
+    assert row["erp_ozeti"] == []
+
+
 def test_auth_contract(prediction, user):
     assert APIClient().get(URL).status_code == 401
     user.is_active = False
@@ -381,7 +434,8 @@ def test_auth_contract(prediction, user):
 def test_query_counts_are_bounded(user, prediction, django_assert_max_num_queries):
     created = create_order(user, prediction)
     client = client_for(user)
-    with django_assert_max_num_queries(4):
+    # Liste parçaları tek bir prefetch sorgusuyla alır; satır başına sorgu üretmez.
+    with django_assert_max_num_queries(5):
         assert client.get(URL).status_code == 200
     with django_assert_max_num_queries(5):
         assert client.get(f"{URL}{created.data['id']}/").status_code == 200

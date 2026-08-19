@@ -17,6 +17,7 @@ from apps.bakim.work_order_policy import (
     WORK_ORDER_POLICY_VERSION,
     IsEmriPolitikaHatasi,
     gecisi_dogrula,
+    genel_oncelik_hedef_mudahale_zamani,
     hedef_mudahale_zamani,
 )
 from apps.kullanicilar.models import Kullanici
@@ -42,6 +43,8 @@ def _olay(
     new_assignee=None,
     old_priority=None,
     new_priority=None,
+    old_general_priority=None,
+    new_general_priority=None,
 ):
     return IsEmriOlayi.objects.create(
         is_emri=order,
@@ -56,12 +59,51 @@ def _olay(
         yeni_atanan_username_snapshot=getattr(new_assignee, "username", None),
         onceki_oncelik=old_priority,
         yeni_oncelik=new_priority,
+        onceki_genel_oncelik=old_general_priority,
+        yeni_genel_oncelik=new_general_priority,
         version=order.version,
     )
 
 
 def _number(order_id, created_at):
     return f"WO-{created_at.year}-{order_id.hex[:12].upper()}"
+
+
+def _canonical_karar_degerleri(decision):
+    canonical_fields = (
+        decision.genel_oncelik,
+        decision.stok_katsayisi,
+        decision.ham_genel_oncelik,
+        decision.genel_oncelik_formul_surumu,
+    )
+    if all(value is None for value in canonical_fields):
+        return None, None, None
+    if any(value is None for value in canonical_fields):
+        raise IsEmriCakismasiHatasi(
+            "IS_EMRI_CANONICAL_KARAR_GECERSIZ",
+            "Bakım kararının genel öncelik bilgileri eksik veya tutarsızdır.",
+        )
+    return (
+        decision.genel_oncelik,
+        decision.genel_oncelik_formul_surumu,
+        decision.genel_oncelik,
+    )
+
+
+def _is_emri_oncelik_turu(order):
+    canonical_fields = (
+        order.kaynak_genel_oncelik,
+        order.kaynak_genel_oncelik_formul_surumu,
+        order.etkin_genel_oncelik,
+    )
+    if all(value is None for value in canonical_fields):
+        return "legacy"
+    if all(value is not None for value in canonical_fields):
+        return "canonical"
+    raise IsEmriCakismasiHatasi(
+        "IS_EMRI_CANONICAL_ALANLAR_TUTARSIZ",
+        "İş emrinin genel öncelik bilgileri eksik veya tutarsızdır.",
+    )
 
 
 def is_emri_olustur(*, actor, trace_id, veriler):
@@ -94,6 +136,11 @@ def is_emri_olustur(*, actor, trace_id, veriler):
             )
             if not prediction:
                 raise NotFound("Tahmin kaydı bulunamadı.")
+            if hasattr(prediction, "red_bilgisi"):
+                raise IsEmriCakismasiHatasi(
+                    "TAHMIN_REDDEDILMIS",
+                    "Bu tahmin kullanıcı tarafından reddedilmiştir, iş emri oluşturulamaz.",
+                )
             if prediction.kaynak == TahminKaydi.Kaynak.REPLAY:
                 raise IsEmriCakismasiHatasi(
                     "REPLAY_TAHMININDEN_IS_EMRI_OLUSTURULAMAZ",
@@ -123,6 +170,25 @@ def is_emri_olustur(*, actor, trace_id, veriler):
                     "Tahmin için aktif iş emri zaten mevcut.",
                 )
             now = timezone.now()
+            (
+                kaynak_genel_oncelik,
+                kaynak_genel_oncelik_formul_surumu,
+                etkin_genel_oncelik,
+            ) = _canonical_karar_degerleri(decision)
+            try:
+                if kaynak_genel_oncelik is None:
+                    deadline = hedef_mudahale_zamani(
+                        baslangic=now, oncelik=decision.oncelik_seviyesi
+                    )
+                else:
+                    deadline = genel_oncelik_hedef_mudahale_zamani(
+                        baslangic=now, genel_oncelik=kaynak_genel_oncelik
+                    )
+            except IsEmriPolitikaHatasi as exc:
+                raise IsEmriCakismasiHatasi(
+                    "IS_EMRI_CANONICAL_SLA_GECERSIZ",
+                    "İş emri genel öncelik SLA bilgisi geçersizdir.",
+                ) from exc
             order = BakimIsEmri(
                 tahmin_kaydi=prediction,
                 makine=prediction.makine,
@@ -138,13 +204,14 @@ def is_emri_olustur(*, actor, trace_id, veriler):
                 kaynak_tedarik_riski_skoru=decision.tedarik_riski_skoru,
                 kaynak_nihai_oncelik_skoru=decision.nihai_oncelik_skoru,
                 kaynak_oncelik_seviyesi=decision.oncelik_seviyesi,
+                kaynak_genel_oncelik=kaynak_genel_oncelik,
+                kaynak_genel_oncelik_formul_surumu=(kaynak_genel_oncelik_formul_surumu),
                 kaynak_ana_aksiyon=decision.ana_aksiyon,
                 kaynak_karar_guveni=decision.karar_guveni,
                 kaynak_ana_ariza_tipi=decision.ana_ariza_tipi,
                 etkin_oncelik_seviyesi=decision.oncelik_seviyesi,
-                hedef_mudahale_zamani=hedef_mudahale_zamani(
-                    baslangic=now, oncelik=decision.oncelik_seviyesi
-                ),
+                etkin_genel_oncelik=etkin_genel_oncelik,
+                hedef_mudahale_zamani=deadline,
                 olusturulma_zamani=now,
             )
             order.is_emri_numarasi = _number(order.id, now)
@@ -262,7 +329,14 @@ def is_emri_durum_gecisi(*, order_id, actor, trace_id, expected_version, target,
 
 
 def is_emri_oncelik_override(
-    *, order_id, actor, trace_id, expected_version, priority, reason
+    *,
+    order_id,
+    actor,
+    trace_id,
+    expected_version,
+    priority=None,
+    general_priority=None,
+    reason,
 ):
     if actor.rol != Kullanici.Rol.ADMIN:
         raise PermissionDenied("Öncelik değişikliği için yönetici yetkisi gereklidir.")
@@ -270,16 +344,55 @@ def is_emri_oncelik_override(
         order = _locked(order_id, expected_version)
         if order.durum in {"TAMAMLANDI", "IPTAL_EDILDI"}:
             raise IsEmriGecisiHatasi("Terminal iş emri değiştirilemez.")
-        old_priority = order.etkin_oncelik_seviyesi
-        if old_priority == priority:
-            raise IsEmriGecisiHatasi("Aynı öncelik yeniden uygulanamaz.")
+        priority_type = _is_emri_oncelik_turu(order)
+        if priority is not None and general_priority is not None:
+            raise IsEmriCakismasiHatasi(
+                "IS_EMRI_OVERRIDE_ISTEGI_BELIRSIZ",
+                "Genel ve legacy öncelik alanları birlikte gönderilemez.",
+            )
+        if priority is None and general_priority is None:
+            raise IsEmriCakismasiHatasi(
+                "IS_EMRI_OVERRIDE_ONCELIGI_EKSIK",
+                "Override için bir öncelik değeri gereklidir.",
+            )
         now = timezone.now()
-        order.etkin_oncelik_seviyesi = priority
+        if priority_type == "canonical":
+            if general_priority is None:
+                raise IsEmriCakismasiHatasi(
+                    "IS_EMRI_CANONICAL_OVERRIDE_ALANI_GECERSIZ",
+                    "Canonical iş emirlerinde 1–5 genel öncelik kullanılmalıdır.",
+                )
+            old_general_priority = order.etkin_genel_oncelik
+            if old_general_priority == general_priority:
+                raise IsEmriGecisiHatasi("Aynı öncelik yeniden uygulanamaz.")
+            try:
+                deadline = genel_oncelik_hedef_mudahale_zamani(
+                    baslangic=now, genel_oncelik=general_priority
+                )
+            except IsEmriPolitikaHatasi as exc:
+                raise IsEmriCakismasiHatasi(
+                    "IS_EMRI_CANONICAL_SLA_GECERSIZ",
+                    "İş emri genel öncelik SLA bilgisi geçersizdir.",
+                ) from exc
+            order.etkin_genel_oncelik = general_priority
+            old_priority = new_priority = None
+            new_general_priority = general_priority
+        else:
+            if priority is None:
+                raise IsEmriCakismasiHatasi(
+                    "IS_EMRI_LEGACY_OVERRIDE_ALANI_GECERSIZ",
+                    "Legacy iş emirlerinde dört seviyeli öncelik kullanılmalıdır.",
+                )
+            old_priority = order.etkin_oncelik_seviyesi
+            if old_priority == priority:
+                raise IsEmriGecisiHatasi("Aynı öncelik yeniden uygulanamaz.")
+            deadline = hedef_mudahale_zamani(baslangic=now, oncelik=priority)
+            order.etkin_oncelik_seviyesi = priority
+            new_priority = priority
+            old_general_priority = new_general_priority = None
         order.manuel_oncelik_override = True
         order.override_nedeni = reason.strip()
-        order.hedef_mudahale_zamani = hedef_mudahale_zamani(
-            baslangic=now, oncelik=priority
-        )
+        order.hedef_mudahale_zamani = deadline
         order.version += 1
         order.save()
         _olay(
@@ -290,6 +403,8 @@ def is_emri_oncelik_override(
             old_state=order.durum,
             description=reason,
             old_priority=old_priority,
-            new_priority=priority,
+            new_priority=new_priority,
+            old_general_priority=old_general_priority,
+            new_general_priority=new_general_priority,
         )
         return order

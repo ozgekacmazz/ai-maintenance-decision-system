@@ -124,7 +124,8 @@ class IsEmriOncelikOverride(IsEmriView):
             actor=request.user,
             trace_id=request.trace_id,
             expected_version=data["beklenen_version"],
-            priority=data["etkin_oncelik_seviyesi"],
+            priority=data.get("etkin_oncelik_seviyesi"),
+            general_priority=data.get("genel_oncelik"),
             reason=data["override_nedeni"],
         )
         return Response(IsEmriDetaySerializer(self.detail(pk)).data)

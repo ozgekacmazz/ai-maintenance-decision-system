@@ -171,10 +171,15 @@ class BakimIsEmri(models.Model):
     kaynak_tedarik_riski_skoru = models.FloatField()
     kaynak_nihai_oncelik_skoru = models.FloatField()
     kaynak_oncelik_seviyesi = models.CharField(max_length=10)
+    kaynak_genel_oncelik = models.PositiveSmallIntegerField(null=True, blank=True)
+    kaynak_genel_oncelik_formul_surumu = models.CharField(
+        max_length=100, null=True, blank=True
+    )
     kaynak_ana_aksiyon = models.CharField(max_length=32)
     kaynak_karar_guveni = models.CharField(max_length=10)
     kaynak_ana_ariza_tipi = models.CharField(max_length=3, null=True)
     etkin_oncelik_seviyesi = models.CharField(max_length=10)
+    etkin_genel_oncelik = models.PositiveSmallIntegerField(null=True, blank=True)
     manuel_oncelik_override = models.BooleanField(default=False)
     override_nedeni = models.CharField(max_length=500, null=True)
     hedef_mudahale_zamani = models.DateTimeField()
@@ -229,6 +234,34 @@ class BakimIsEmri(models.Model):
                 ),
                 name="is_emri_etkin_oncelik_gecerli",
             ),
+            models.CheckConstraint(
+                condition=Q(kaynak_genel_oncelik__isnull=True)
+                | Q(kaynak_genel_oncelik__range=(1, 5)),
+                name="is_emri_kaynak_genel_1_5",
+            ),
+            models.CheckConstraint(
+                condition=Q(etkin_genel_oncelik__isnull=True)
+                | Q(etkin_genel_oncelik__range=(1, 5)),
+                name="is_emri_etkin_genel_1_5",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(kaynak_genel_oncelik__isnull=True)
+                    & Q(kaynak_genel_oncelik_formul_surumu__isnull=True)
+                    & Q(etkin_genel_oncelik__isnull=True)
+                )
+                | (
+                    Q(kaynak_genel_oncelik__isnull=False)
+                    & Q(kaynak_genel_oncelik_formul_surumu__isnull=False)
+                    & Q(etkin_genel_oncelik__isnull=False)
+                ),
+                name="is_emri_genel_oncelik_birlikte",
+            ),
+            models.CheckConstraint(
+                condition=Q(kaynak_genel_oncelik_formul_surumu__isnull=True)
+                | ~Q(kaynak_genel_oncelik_formul_surumu=""),
+                name="is_emri_genel_formul_bos_degil",
+            ),
         ]
 
     def __str__(self):
@@ -265,6 +298,8 @@ class IsEmriOlayi(ImmutableSnapshotModel):
     yeni_atanan_username_snapshot = models.CharField(max_length=150, null=True)
     onceki_oncelik = models.CharField(max_length=10, null=True)
     yeni_oncelik = models.CharField(max_length=10, null=True)
+    onceki_genel_oncelik = models.PositiveSmallIntegerField(null=True, blank=True)
+    yeni_genel_oncelik = models.PositiveSmallIntegerField(null=True, blank=True)
     version = models.PositiveIntegerField()
     olusturulma_zamani = models.DateTimeField(auto_now_add=True)
 
@@ -277,5 +312,26 @@ class IsEmriOlayi(ImmutableSnapshotModel):
             ),
             models.CheckConstraint(
                 condition=Q(version__gte=1), name="is_emri_olay_version_pozitif"
+            ),
+            models.CheckConstraint(
+                condition=Q(onceki_genel_oncelik__isnull=True)
+                | Q(onceki_genel_oncelik__range=(1, 5)),
+                name="is_emri_olay_onceki_genel_1_5",
+            ),
+            models.CheckConstraint(
+                condition=Q(yeni_genel_oncelik__isnull=True)
+                | Q(yeni_genel_oncelik__range=(1, 5)),
+                name="is_emri_olay_yeni_genel_1_5",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(onceki_genel_oncelik__isnull=True)
+                    & Q(yeni_genel_oncelik__isnull=True)
+                )
+                | (
+                    Q(onceki_genel_oncelik__isnull=False)
+                    & Q(yeni_genel_oncelik__isnull=False)
+                ),
+                name="is_emri_olay_genel_birlikte",
             ),
         ]
