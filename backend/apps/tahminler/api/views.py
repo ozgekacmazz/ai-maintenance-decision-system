@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import BasePermission, IsAuthenticated
@@ -5,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bakim.api.pagination import BakimSayfalama
+from apps.bakim.models import BakimIsEmri
+from apps.kullanicilar.api.permissions import UrunAdminiMi
 from apps.tahminler import replay_selectors, replay_services, services
 from apps.tahminler.api.replay_serializers import (
     AdimSerializer,
@@ -23,9 +26,19 @@ from apps.tahminler.api.serializers import (
     TahminKaydiFiltreSerializer,
     TahminKaydiListeSerializer,
     TahminKaydiYazmaSerializer,
+    TahminLoguFiltreSerializer,
+    TahminLoguSerializer,
+    TahminReddetSerializer,
 )
+from apps.tahminler.exceptions import TahminReddetmeCakismasiHatasi
+from apps.tahminler.input_domain import frontend_input_domain_contract
+from apps.tahminler.models import TahminKaydi, TahminReddi
 from apps.tahminler.record_services import tahmin_kaydi_olustur
-from apps.tahminler.selectors import tahmin_kaydi_detayi, tahmin_kaydi_listesi
+from apps.tahminler.selectors import (
+    tahmin_kaydi_detayi,
+    tahmin_kaydi_listesi,
+    tahmin_loglari,
+)
 
 
 class AktifTahminKullanicisiMi(BasePermission):
@@ -48,6 +61,13 @@ class RiskTahmini(APIView):
         serializer = RiskTahminiGirdiSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(services.hiyerarsik_risk_tahmini_yap(serializer.validated_data))
+
+
+class InputDomainContract(APIView):
+    permission_classes = (IsAuthenticated, AktifTahminKullanicisiMi)
+
+    def get(self, request):
+        return Response(frontend_input_domain_contract())
 
 
 class TahminKaydiListesi(APIView):
@@ -86,6 +106,57 @@ class TahminKaydiDetayi(APIView):
     def get(self, request, pk):
         record = get_object_or_404(tahmin_kaydi_detayi(), pk=pk)
         return Response(TahminKaydiDetaySerializer(record).data)
+
+
+class TahminLoglari(APIView):
+    permission_classes = (IsAuthenticated, UrunAdminiMi)
+
+    def get(self, request):
+        filtre = TahminLoguFiltreSerializer(data=request.query_params)
+        filtre.is_valid(raise_exception=True)
+        paginator = BakimSayfalama()
+        page = paginator.paginate_queryset(
+            tahmin_loglari(filtreler=filtre.validated_data), request, self
+        )
+        return paginator.get_paginated_response(
+            TahminLoguSerializer(page, many=True).data
+        )
+
+
+class TahminReddet(APIView):
+    permission_classes = (IsAuthenticated, AktifTahminKullanicisiMi)
+
+    def post(self, request, pk):
+        serializer = TahminReddetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            record = get_object_or_404(TahminKaydi.objects.select_for_update(), pk=pk)
+            if hasattr(record, "red_bilgisi"):
+                raise TahminReddetmeCakismasiHatasi(
+                    "TAHMIN_ZATEN_REDDEDILMIS", "Tahmin zaten reddedilmiş."
+                )
+            if BakimIsEmri.objects.filter(tahmin_kaydi=record).exists():
+                raise TahminReddetmeCakismasiHatasi(
+                    "TAHMIN_ONAYLANMIS",
+                    "Bu tahmin için iş emri zaten oluşturulmuş, reddedilemez.",
+                )
+            if record.kaynak == TahminKaydi.Kaynak.REPLAY:
+                raise TahminReddetmeCakismasiHatasi(
+                    "REPLAY_TAHMINI_REDDEDILEMEZ",
+                    "Replay kaynaklı tahminler reddedilemez.",
+                )
+
+            red_nedeni = serializer.validated_data.get("red_nedeni", "")
+            TahminReddi.objects.create(
+                tahmin=record,
+                reddeden=request.user,
+                red_nedeni=red_nedeni or "Kullanıcı tarafından reddedildi.",
+            )
+        record = get_object_or_404(tahmin_kaydi_detayi(), pk=pk)
+        return Response(
+            TahminKaydiDetaySerializer(record).data, status=status.HTTP_201_CREATED
+        )
 
 
 class ReplayView(APIView):

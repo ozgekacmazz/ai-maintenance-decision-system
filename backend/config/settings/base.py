@@ -86,6 +86,12 @@ REPLAY_PREPARED_METADATA_PATH = Path(
         "REPLAY_PREPARED_METADATA_PATH", "/data/metadata/failure_label_analysis.json"
     )
 )
+INPUT_DOMAIN_CONTRACT_PATH = Path(
+    os.getenv(
+        "INPUT_DOMAIN_CONTRACT_PATH",
+        REPO_ROOT / "data" / "metadata" / "input_domain_contract.json",
+    )
+)
 
 MIDDLEWARE = [
     "apps.core.middleware.TraceIdMiddleware",

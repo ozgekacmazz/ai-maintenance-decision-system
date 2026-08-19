@@ -16,12 +16,14 @@ from bakim_ml.features import add_engineered_features
 from bakim_ml.modeling import feature_frame
 from django.conf import settings
 
+from apps.tahminler.domain_validation import model_girdilerini_dogrula
 from apps.tahminler.exceptions import ModelHizmetiHatasi
 from apps.tahminler.explainability import (
     aciklama_uret,
     ariza_tipi_explainer_cache_sifirla,
     binary_explainer_cache_sifirla,
 )
+from apps.tahminler.input_domain import input_domain_contract_getir
 from apps.tahminler.policy import (
     DENEYSEL_FIZIKSEL_TIPLER,
     GUVENILIR_FIZIKSEL_TIPLER,
@@ -290,6 +292,7 @@ def ariza_tipi_modeli_getir(*, artifact_path=None, metadata_path=None):
 
 
 def _ozellikleri_hazirla(sensor_verisi):
+    model_girdilerini_dogrula(sensor_verisi)
     return feature_frame(add_engineered_features(pd.DataFrame([dict(sensor_verisi)])))
 
 
@@ -306,9 +309,13 @@ def _binary_risk_hesapla(features, model):
 
 def risk_tahmini_yap(sensor_verisi, *, model=None):
     try:
-        return _binary_risk_hesapla(
+        result = _binary_risk_hesapla(
             _ozellikleri_hazirla(sensor_verisi), model or modeli_getir()
         )
+        result["input_domain_contract_surumu"] = input_domain_contract_getir()[
+            "contract_version"
+        ]
+        return result
     except ModelHizmetiHatasi:
         raise
     except Exception as exc:
@@ -363,6 +370,9 @@ def hiyerarsik_risk_tahmini_yap(
         )
         binary_snapshot = binary_model or modeli_getir()
         result = _binary_risk_hesapla(features, binary_snapshot)
+        result["input_domain_contract_surumu"] = input_domain_contract_getir()[
+            "contract_version"
+        ]
         if not result["risk_uyarisi"]:
             result["ariza_tipi_degerlendirmesi"] = {
                 "durum": "RISK_ESIK_ALTINDA",

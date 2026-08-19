@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from apps.bakim.models import ArizaParcaKurali, Makine
 from apps.tahminler.decision_engine import bakim_karari_hesapla
 from apps.tahminler.exceptions import IdempotencyCakismasiHatasi, KararMotoruHatasi
+from apps.tahminler.genel_oncelik import genel_oncelik_hesapla
 from apps.tahminler.models import (
     ArizaTipiSnapshot,
     BakimKarariSnapshot,
@@ -178,6 +179,11 @@ def _karar_kaydet(*, tahmin, failure_snapshots, erp_snapshots):
     }
     try:
         result = bakim_karari_hesapla(engine_input)
+        canonical_result = genel_oncelik_hesapla(
+            risk_orani=tahmin.risk_orani,
+            makine_kritikligi=tahmin.kritiklik_snapshot,
+            tedarik_riski_skoru=result["tedarik_riski_skoru"],
+        )
     except Exception as exc:
         raise KararMotoruHatasi() from exc
     decision = BakimKarariSnapshot.objects.create(
@@ -187,6 +193,10 @@ def _karar_kaydet(*, tahmin, failure_snapshots, erp_snapshots):
         tedarik_riski_skoru=result["tedarik_riski_skoru"],
         nihai_oncelik_skoru=result["nihai_oncelik_skoru"],
         oncelik_seviyesi=result["oncelik_seviyesi"],
+        genel_oncelik=canonical_result.genel_oncelik,
+        stok_katsayisi=canonical_result.stok_katsayisi,
+        ham_genel_oncelik=canonical_result.ham_genel_oncelik,
+        genel_oncelik_formul_surumu=canonical_result.formul_surumu,
         ana_aksiyon=result["ana_aksiyon"],
         ana_ariza_tipi=result["ana_ariza_tipi"],
         karar_guveni=result["karar_guveni"],
@@ -250,6 +260,7 @@ def _kaydi_yaz(
         binary_threshold=result["threshold"],
         binary_model_version=result["model_version"],
         binary_pipeline_version=result["pipeline_version"],
+        input_domain_contract_surumu=result.get("input_domain_contract_surumu"),
         failure_type_durum=evaluation["durum"],
         failure_type_model_version=evaluation.get("model_version"),
         failure_type_pipeline_version=evaluation.get("pipeline_version"),

@@ -38,6 +38,9 @@ class TahminKaydi(ImmutableSnapshotModel):
     binary_threshold = models.FloatField()
     binary_model_version = models.CharField(max_length=100)
     binary_pipeline_version = models.CharField(max_length=50)
+    input_domain_contract_surumu = models.CharField(
+        max_length=100, null=True, blank=True
+    )
     failure_type_durum = models.CharField(max_length=32)
     failure_type_model_version = models.CharField(max_length=100, null=True)
     failure_type_pipeline_version = models.CharField(max_length=50, null=True)
@@ -235,6 +238,16 @@ class BakimKarariSnapshot(ImmutableSnapshotModel):
     tedarik_riski_skoru = models.FloatField()
     nihai_oncelik_skoru = models.FloatField()
     oncelik_seviyesi = models.CharField(max_length=10, choices=OncelikSeviyesi.choices)
+    genel_oncelik = models.PositiveSmallIntegerField(null=True, blank=True)
+    stok_katsayisi = models.DecimalField(
+        max_digits=3, decimal_places=2, null=True, blank=True
+    )
+    ham_genel_oncelik = models.DecimalField(
+        max_digits=6, decimal_places=4, null=True, blank=True
+    )
+    genel_oncelik_formul_surumu = models.CharField(
+        max_length=100, null=True, blank=True
+    )
     ana_aksiyon = models.CharField(max_length=32, choices=Aksiyon.choices)
     ana_ariza_tipi = models.CharField(
         max_length=3, choices=ArizaTipiSnapshot.Kod.choices, null=True
@@ -258,6 +271,43 @@ class BakimKarariSnapshot(ImmutableSnapshotModel):
             models.CheckConstraint(
                 condition=Q(nihai_oncelik_skoru__gte=0, nihai_oncelik_skoru__lte=100),
                 name="karar_nihai_skor_0_100",
+            ),
+            models.CheckConstraint(
+                condition=Q(genel_oncelik__isnull=True)
+                | Q(genel_oncelik__gte=1, genel_oncelik__lte=5),
+                name="karar_genel_oncelik_1_5",
+            ),
+            models.CheckConstraint(
+                condition=Q(stok_katsayisi__isnull=True)
+                | Q(stok_katsayisi__gte=1, stok_katsayisi__lte=2),
+                name="karar_stok_katsayisi_1_2",
+            ),
+            models.CheckConstraint(
+                condition=Q(ham_genel_oncelik__isnull=True)
+                | Q(ham_genel_oncelik__gte=0, ham_genel_oncelik__lte=10),
+                name="karar_ham_genel_oncelik_0_10",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        genel_oncelik__isnull=True,
+                        stok_katsayisi__isnull=True,
+                        ham_genel_oncelik__isnull=True,
+                        genel_oncelik_formul_surumu__isnull=True,
+                    )
+                    | Q(
+                        genel_oncelik__isnull=False,
+                        stok_katsayisi__isnull=False,
+                        ham_genel_oncelik__isnull=False,
+                        genel_oncelik_formul_surumu__isnull=False,
+                    )
+                ),
+                name="karar_canonical_alanlar_birlikte",
+            ),
+            models.CheckConstraint(
+                condition=Q(genel_oncelik_formul_surumu__isnull=True)
+                | ~Q(genel_oncelik_formul_surumu=""),
+                name="karar_formul_surumu_bos_degil",
             ),
             models.CheckConstraint(
                 condition=Q(ana_ariza_tipi__isnull=True)
@@ -594,3 +644,19 @@ class ReplayOlayi(ImmutableSnapshotModel):
                 name="replay_olay_son_sira_pozitif",
             ),
         ]
+
+
+class TahminReddi(ImmutableSnapshotModel):
+    tahmin = models.OneToOneField(
+        TahminKaydi, on_delete=models.CASCADE, related_name="red_bilgisi"
+    )
+    reddeden = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="tahmin_redleri",
+    )
+    red_nedeni = models.CharField(max_length=500, null=True, blank=True)
+    olusturulma_zamani = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tahmin_redleri"
