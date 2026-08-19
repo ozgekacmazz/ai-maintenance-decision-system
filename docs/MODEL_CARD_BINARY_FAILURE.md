@@ -24,4 +24,4 @@ Artefakt `ml/artifacts/binary-failure-1.0.0.joblib` altında Git dışındadır.
 
 ## Sınırlamalar
 
-AI4I sentetiktir; gerçek saha garantisi vermez. Dış doğrulama ve gerçek temporal doğrulama yapılmamıştır. Sentetik timestamp temporal kanıt değildir. Drift izleme ve otomatik yeniden eğitim uygulanmamıştır. Arıza tipi modeli ve SHAP açıklamaları sonraki sprint kapsamındadır. Model çıktısı insan denetimli karar desteği olarak ele alınmalıdır.
+AI4I sentetiktir; gerçek saha garantisi vermez. Dış doğrulama ve gerçek temporal doğrulama yapılmamıştır. Sentetik timestamp temporal kanıt değildir. Drift izleme ve otomatik yeniden eğitim uygulanmamıştır. Runtime, binary eşik aşıldığında ayrı multi-label arıza tipi modellerini ve pozitif sınıf SHAP açıklamalarını çalıştırır. Model çıktısı insan denetimli karar desteği olarak ele alınmalıdır.

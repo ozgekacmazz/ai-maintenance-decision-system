@@ -1,5 +1,7 @@
 # Failure-Type Multi-Label Model Deney Raporu
 
+> Bu belge model eğitim koşusunun tarihsel raporudur; güncel runtime birleşimi için README ve hiyerarşik tahmin belgesine bakın.
+
 ## Amaç ve problem tanımı
 
 Sprint 10, AI4I kayıtlarının aynı anda birden fazla fiziksel arıza tipi

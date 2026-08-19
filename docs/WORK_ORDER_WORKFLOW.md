@@ -69,7 +69,7 @@ Atama, geçiş ve override isteklerinde `beklenen_version` zorunludur. Her işle
 `409 ESZAMANLI_GUNCELLEME_CAKISMASI` üretir. Başarılı işlem version'ı tam bir artırır
 ve aynı version numaralı tek olay yazar; olay hatası aggregate değişikliğini geri alır.
 
-## SLA, gecikme ve override
+## Legacy uyumluluk SLA'sı, gecikme ve override
 
 Politika sürümü `work-order-policy-1.0.0`:
 
@@ -147,5 +147,11 @@ SQL, constraint, traceback veya fingerprint sızdırmaz; body trace ID ile
 
 Create, idempotent tekrar, atama, başlatma, bekleme, devam, tamamlama, büyüyen olay
 geçmişi, stale version 409, yetkisiz USER 403, ADMIN override, gecikme filtresi,
-terminal geçiş reddi ve trace ID izlenir. Bildirim, replay, frontend, iş gücü/ekip
+terminal geçiş reddi ve trace ID izlenir. Bildirim, iş gücü/ekip
 takvimi, stok rezervasyonu ve otomatik satın alma bu sürümün kapsamı dışındadır.
+
+## Canonical öncelik, override ve SLA
+
+Canonical iş emri karar snapshot'ından `kaynak_genel_oncelik` ve formül sürümünü alır; `etkin_genel_oncelik` başlangıçta kaynak değerle aynıdır. Admin override yalnız etkin değeri değiştirir ve olay snapshot'ında önceki/yeni 1–5 değerlerini saklar. Kaynak alanlar değişmez.
+
+SLA politika sürümü `general-priority-sla-1.0.0` olup süreler 1→168, 2→120, 3→72, 4→24 ve 5→4 saattir. Override SLA'yı override anından itibaren yeniden hesaplar. Canonical alanları `NULL` olan legacy emirler dört seviyeli mevcut SLA ve override davranışını sürdürür; geçmiş deadline'lar veya idempotent tekrarlar backfill edilmez.

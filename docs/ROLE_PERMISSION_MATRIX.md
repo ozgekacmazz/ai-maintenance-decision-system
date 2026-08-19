@@ -1,8 +1,7 @@
 # Rol ve Yetki Matrisi
 
-Bu belge ürün rolleri ile Django'nun teknik kullanıcı bayraklarını ayırır. Sprint
-3'te policy, servis ve bootstrap davranışları uygulanmıştır; HTTP API, JWT ve
-tabloda belirtilen ürün ekranları henüz uygulanmamıştır.
+Bu belge ürün rolleri ile Django'nun teknik kullanıcı bayraklarını ayırır. HTTP API,
+JWT, ürün ekranları ve authoritative backend permission kontrolleri uygulanmıştır.
 
 ## Kavramlar
 
@@ -19,15 +18,15 @@ kavramları birbirine eşitlemez.
 
 | Alan / işlem | Aktif USER | Aktif ADMIN | Django teknik koşulu | Durum |
 |---|---:|---:|---|---|
-| Risk listesi | Evet | Evet | Ürün authentication | Planlanan erişim |
-| Makine detayı | Evet | Evet | Ürün authentication | Planlanan erişim |
-| İş emirleri | Evet | Evet | Ürün authentication | Planlanan erişim |
-| Kullanıcı yönetimi | Hayır | Evet | Aktif ürün ADMIN | Servis/policy uygulandı; API planlandı |
-| Makine/stok yönetimi | Hayır | Evet | Aktif ürün ADMIN | Planlanan erişim |
-| Tahmin logları | Hayır | Evet | Aktif ürün ADMIN | Planlanan erişim |
+| Risk listesi | Evet | Evet | Ürün authentication | Uygulandı |
+| Makine detayı | Evet | Evet | Ürün authentication | Uygulandı |
+| İş emirleri | Evet | Evet | Ürün authentication + işlem policy'si | Uygulandı |
+| Kullanıcı yönetimi | Hayır | Evet | Aktif ürün ADMIN | Uygulandı |
+| Makine/stok yönetimi | Hayır | Evet | Aktif ürün ADMIN | Uygulandı |
+| Tahmin logları | Hayır | Evet | Aktif ürün ADMIN | Uygulandı |
 | Django admin | Hayır | Ürün rolü tek başına yetmez | `is_active` + `is_staff`; tam yetki için `is_superuser` | Mevcut |
 
-Pasif kullanıcı yeni oturum açamamalı veya token yenileyememelidir. JWT henüz
+Pasif kullanıcı yeni oturum açamaz veya token yenileyemez. JWT
 uygulanan authentication katmanında login, refresh ve korumalı endpoint'lerde
 reddedilir. Menü gizlemek güvenlik değildir; her korumalı endpoint
 policy/permission kontrolünü sunucuda yapar. Token yokluğu/geçersizliği HTTP 401,

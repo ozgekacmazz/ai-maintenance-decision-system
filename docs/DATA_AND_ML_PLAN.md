@@ -1,5 +1,7 @@
 # Veri ve Makine Öğrenmesi Planı
 
+> Bu belge tarihsel plan kaydıdır; güncel davranış için README, model kartları, `INPUT_DOMAIN.md` ve aktif API belgelerine bakın.
+
 ## Sprint 7 uygulama durumu
 
 AI4I 2020 resmi UCI kaynağından edinilmiş; merkezi veri sözleşmesi, kalite kapısı,

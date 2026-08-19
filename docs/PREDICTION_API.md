@@ -195,3 +195,8 @@ Prepared veri replay endpointleri, leakage ve metrik sözleşmesi
 Karar motoru hatası iç ayrıntı sızdırmadan `503
 KARAR_MOTORU_KULLANILAMIYOR` döner; transaction'da hiçbir snapshot bırakılmaz ve
 body `trace_id` ile `X-Trace-ID` eşleşir.
+# Input-domain sözleşmesi ve sıcaklık birimi
+
+Kanonik tahmin API girdileri Kelvin (`hava_sicakligi_k`, `proses_sicakligi_k`) olarak kalır. Kullanıcı arayüzü sıcaklıkları Celsius gösterir ve isteği göndermeden hemen önce Kelvin'e çevirir. Modelin desteklediği güncel aralıklar kimlik doğrulamalı `GET /api/tahminler/input-domain/` endpoint'inden alınır; arayüzde sabitlenmez.
+
+Sözleşme `data/metadata/input_domain_contract.json` dosyasıdır. `ml/scripts/generate_input_domain_contract.py`, prepared veri kümesinin yalnızca eğitim bölmesinden gözlenen min/max ve yüzdelikleri deterministik olarak üretir. Güvenlik amaçlı fiziksel ve desteklenen sınırlar sürümlü `data/metadata/input_domain_policy.json` politikasından gelir. Sözleşme eksik veya şema/model feature sırasıyla uyumsuzsa tahmin servisi fallback uygulamadan kapalı kalır. Yeni kalıcı tahminler kullanılan `input_domain_contract_surumu` değerini denetim snapshot'ı olarak saklar.

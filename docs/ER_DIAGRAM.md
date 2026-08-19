@@ -1,5 +1,7 @@
 # Sprint 2 ER Diyagramı
 
+> Bu belge tarihsel Sprint 2 şema kaydıdır; güncel modeller ve migration'lar daha yeni tahmin, karar, iş emri ve replay tablolarını içerir.
+
 Bu belge Sprint 2'de gerçekten uygulanan temel PostgreSQL şemasını gösterir.
 Sonraki sprintlere ait tahmin, karar, iş emri, sensör ve replay tabloları henüz
 uygulanmadığı için diyagramda yer almaz.

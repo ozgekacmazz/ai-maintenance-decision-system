@@ -60,7 +60,7 @@ snapshot'larını verir. Trace ID standart hata ve başarı izleme sözleşmesin
 
 ## Kapsam sınırı ve F12 kontrolü
 
-İş emri ve stok değişikliği kapsam dışıdır; replay motoru sonraki sprinte bırakılmıştır.
+Bu tahmin kaydı sözleşmesi stok değerini değiştirmez. İş emri ve replay ayrı, uygulanmış domain servisleri üzerinden çalışır; tahmin snapshot'ı sonradan mutasyona uğramaz.
 Kalıcı karar snapshot'ından iş emri oluşturma sözleşmesi
 [iş emri yaşam döngüsü belgesinde](WORK_ORDER_WORKFLOW.md) tanımlıdır; iş emri
 değişiklikleri tahmin veya karar snapshot'ını değiştirmez.

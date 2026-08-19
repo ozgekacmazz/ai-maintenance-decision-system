@@ -2,7 +2,7 @@
 
 ## 1. Durum ve kaynak ayrımı
 
-Bu belge Sprint 0 ürün kapsamını tanımlar. Özellikler henüz geliştirilmemiştir.
+Bu belge tamamlanan Sprint 20R tesliminin aktif ürün gereksinimlerini ve bilinçli kapsam sınırlarını tanımlar.
 
 - **PDF zorunluluğu:** Resmî ödevde açıkça beklenen davranış veya ekran.
 - **PDF önerisi:** Bağlayıcı olmayan teknoloji, veri veya örnek değer.
@@ -93,15 +93,26 @@ Proje kararı olarak:
 
 ## 8. Replay
 
-Demo verisini satır satır sisteme veren replay akışı zorunlu kapsamdır. Replay hızı yapılandırılabilir olmalı, sentetik makine ve zaman bilgisi üretmeli ve canlı veri akışı hissi sağlamalıdır. Tekrar çalıştırma davranışı duplicate kayıt üretmeyecek şekilde tasarlanacaktır.
+Demo verisini kontrollü HTTP batch adımlarıyla sisteme veren replay akışı uygulanmıştır. Prepared verideki sentetik makine/zaman alanları audit bağlamında korunur; seçilen aktif DB makinesi inference hedefidir. Oluşturma ve adımlama idempotency/optimistic concurrency kurallarıyla duplicate sonucu engeller.
+
+Replay model değerlendirmesinde ana metrikler precision, recall, PR-AUC ve confusion
+matrix'tir; accuracy KPI olarak kullanılmaz. F1 yalnız yardımcı metriktir. Pozitif
+sınıf arızadır. PR-AUC gerçek pozitif etiket ve risk olasılığı üzerinden hesaplanır;
+tek sınıflı veya skoru eksik replay'de kullanılabilir değil olarak gösterilir.
 
 ## 9. Veri ve entegrasyon sınırı
 
 - AI4I 2020 veri seti PDF önerisidir ve proje tarafından demo/replay için seçilmiştir.
 - Sentetik `machine_id` ve `timestamp` yalnız demo/replay içindir.
 - Gerçek ERP bağlantısı ilk sürüm kapsamı dışındadır.
-- Makine, stok, parça, aksiyon ve iş emri yapıları ERP'ye hazır iç veri modeli ve API olarak tasarlanacaktır.
+- Makine, stok, parça, aksiyon ve iş emri yapıları ERP'ye hazır iç veri modeli ve API olarak uygulanmıştır.
 
 ## 10. Ek ürün özellikleri
 
 PDF'yi bozmadan eklenen özellikler; karar snapshot'ı, model sürümü, threshold, SHAP etkileri, stok bağlamı, veri kalite kapısı, `trace_id` ve standart hata sözleşmesidir.
+
+## Canonical genel öncelik ve legacy geçişi
+
+Yeni bakım kararlarında canonical genel öncelik 1–5 aralığındadır. Hesap `risk_orani × makine_kritikligi × stok_katsayisi` biçimindedir; `stok_katsayisi = 1 + tedarik_riski_skoru / 100` olarak belirlenir. Ham sonuç aralıkları 0–2 → 1, >2–4 → 2, >4–6 → 3, >6–8 → 4 ve >8–10 → 5'tir.
+
+Geçmiş karar ve iş emri kayıtlarının canonical alanları `NULL` kalabilir. Otomatik backfill yapılmaz, mevcut SLA tarihleri değiştirilmez ve eksik geçmiş veriden stok katsayısı üretilmez. Bu kayıtlar kullanıcı arayüzünde açıkça legacy öncelik olarak gösterilir.
