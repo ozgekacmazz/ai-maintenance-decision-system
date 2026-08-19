@@ -15,8 +15,10 @@ import {
   TrendingDown,
   Minus,
 } from 'lucide-react'
-import { tahminKaydiDetayiGetir } from '../api/tahminler'
+import { tahminKaydiDetayiGetir, tahminReddet } from '../api/tahminler'
+import { isEmriOlustur } from '../api/isEmirleri'
 import type { TahminKaydiDetay } from '../types/tahminler'
+import { isEmriDurumMetni } from '../types/isEmirleri'
 import {
   anaAksiyonMetni,
   arizaTipiMetni,
@@ -29,7 +31,7 @@ import {
   yonMetni,
 } from '../types/tahminler'
 import { ApiHatasi } from '../types/apiHata'
-import { StatusBadge } from '../components/feedback/StatusBadge'
+import { GeneralPriorityBadge } from '../components/feedback/GeneralPriorityBadge'
 import { MetricCard } from '../components/data-display/MetricCard'
 import { LoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 import { ErrorState } from '../components/feedback/ErrorState'
@@ -46,6 +48,72 @@ export function TahminDetay() {
 
   // Akordeon durumları
   const [teknikAcik, setTeknikAcik] = useState(false)
+
+  // İş Emri Oluşturma State
+  const [isEmriModalAcik, setIsEmriModalAcik] = useState(false)
+  const [isEmriBaslik, setIsEmriBaslik] = useState('')
+  const [isEmriAciklama, setIsEmriAciklama] = useState('')
+  const [idempotencyKey, setIdempotencyKey] = useState('')
+  const [isEmriOlusturuluyor, setIsEmriOlusturuluyor] = useState(false)
+  const [isEmriHatasi, setIsEmriHatasi] = useState<string | null>(null)
+
+  const [redModalAcik, setRedModalAcik] = useState(false)
+  const [redNedeni, setRedNedeni] = useState('')
+  const [reddediliyor, setReddediliyor] = useState(false)
+  const [redHatasi, setRedHatasi] = useState<string | null>(null)
+  const [redTraceId, setRedTraceId] = useState<string | null>(null)
+
+  const reddetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!kayit || reddediliyor) return
+
+    setReddediliyor(true)
+    setRedHatasi(null)
+    setRedTraceId(null)
+
+    try {
+      const guncelKayit = await tahminReddet(kayit.id, redNedeni)
+      setKayit(guncelKayit)
+      setRedModalAcik(false)
+      setRedNedeni('')
+    } catch (err) {
+      if (err instanceof ApiHatasi) {
+        setRedHatasi(err.message)
+        setRedTraceId(err.traceId ?? null)
+      } else {
+        setRedHatasi('Değerlendirme reddedilirken bir hata oluştu.')
+      }
+    } finally {
+      setReddediliyor(false)
+    }
+  }
+
+  const isEmriSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!kayit || !isEmriBaslik.trim() || !isEmriAciklama.trim()) return
+
+    setIsEmriOlusturuluyor(true)
+    setIsEmriHatasi(null)
+
+    try {
+      const wo = await isEmriOlustur({
+        tahmin_kaydi_id: kayit.id,
+        idempotency_key: idempotencyKey,
+        baslik: isEmriBaslik,
+        aciklama: isEmriAciklama,
+      })
+      setIsEmriModalAcik(false)
+      navigate(`/app/is-emirleri/${wo.id}`)
+    } catch (err) {
+      if (err instanceof ApiHatasi) {
+        setIsEmriHatasi(err.message)
+      } else {
+        setIsEmriHatasi('İş emri oluşturulurken bir hata oluştu.')
+      }
+    } finally {
+      setIsEmriOlusturuluyor(false)
+    }
+  }
 
   useEffect(() => {
     if (!tahminId) return
@@ -180,7 +248,7 @@ export function TahminDetay() {
 
         <MetricCard
           baslik="Nihai Bakım Önceliği"
-          deger={bakim_karari ? oncelikSeviyesiMetni(bakim_karari.oncelik_seviyesi) : 'Belirtilmedi'}
+          deger={bakim_karari?.genel_oncelik ? `Öncelik ${bakim_karari.genel_oncelik}/5` : bakim_karari ? oncelikSeviyesiMetni(bakim_karari.oncelik_seviyesi) : 'Belirtilmedi'}
           aciklama={bakim_karari ? anaAksiyonMetni(bakim_karari.ana_aksiyon) : 'Karar henüz üretilmedi'}
           varyant={bakim_karari?.oncelik_seviyesi === 'KRITIK' ? 'kritik' : 'varsayilan'}
         />
@@ -199,7 +267,7 @@ export function TahminDetay() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <Wrench size={22} color="var(--primary)" />
             <h3 style={{ margin: 0 }}>Sistem Bakım Kararı</h3>
-            <StatusBadge oncelik={bakim_karari.oncelik_seviyesi} />
+            <GeneralPriorityBadge genelOncelik={bakim_karari.genel_oncelik} legacyOncelik={bakim_karari.oncelik_seviyesi} />
           </div>
 
           <div className="dashboard-grid" style={{ marginBottom: '20px' }}>
@@ -218,12 +286,25 @@ export function TahminDetay() {
             </div>
 
             <div className="metrik-kart">
-              <span className="etiket">Nihai Öncelik Skoru</span>
+              <span className="etiket">Legacy Karar Skoru</span>
               <div className="deger" style={{ fontSize: '1.5rem', marginTop: '4px' }}>
                 {bakim_karari.nihai_oncelik_skoru} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>/ 100</span>
               </div>
             </div>
           </div>
+
+          {bakim_karari.genel_oncelik !== null && (
+            <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', marginBottom: '16px' }}>
+              <strong>Genel Öncelik Hesabı</strong>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
+                <span>Risk oranı: %{Math.round(kayit.tahmin.risk_orani * 100)}</span>
+                <span>Makine kritikliÄŸi: {kayit.makine.kritiklik_snapshot}/5</span>
+                <span>Stok katsayısı: {bakim_karari.stok_katsayisi}</span>
+                <span>Ham sonuç: {bakim_karari.ham_genel_oncelik}</span>
+                <span>Genel öncelik: {bakim_karari.genel_oncelik}/5</span>
+              </div>
+            </div>
+          )}
 
           {/* Karar Gerekçeleri */}
           {bakim_karari.gerekceler && bakim_karari.gerekceler.length > 0 && (
@@ -271,6 +352,83 @@ export function TahminDetay() {
           <p style={{ margin: '16px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
             Sistem karar desteği sağlar; otomatik makine durdurma komutu üretmez.
           </p>
+
+          {/* Kullanıcı Kararı */}
+          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            {kayit.red_bilgisi ? (
+              <div>
+                <h4 style={{ margin: '0 0 8px 0' }}>Bu değerlendirme reddedildi</h4>
+                <p style={{ margin: '0 0 4px 0' }}>Reddeden: {kayit.red_bilgisi.reddeden}</p>
+                <p style={{ margin: '0 0 4px 0' }}>
+                  Tarih: {new Date(kayit.red_bilgisi.reddetme_zamani).toLocaleString('tr-TR')}
+                </p>
+                <p style={{ margin: 0 }}>Neden: {kayit.red_bilgisi.red_nedeni}</p>
+              </div>
+            ) : kayit.is_emri_bilgisi ? (
+              <div>
+                <h4 style={{ margin: '0 0 8px 0' }}>Bu bakım kararı onaylandı</h4>
+                <p style={{ margin: '0 0 4px 0' }}>
+                  İş emri:{' '}
+                  <button
+                    type="button"
+                    className="buton-link"
+                    style={{ width: 'auto', padding: 0 }}
+                    onClick={() => navigate(`/app/is-emirleri/${kayit.is_emri_bilgisi?.id}`)}
+                  >
+                    {kayit.is_emri_bilgisi.is_emri_numarasi}
+                  </button>
+                </p>
+                <p style={{ margin: '0 0 4px 0' }}>
+                  Durum: {isEmriDurumMetni(kayit.is_emri_bilgisi.durum)}
+                </p>
+                <p style={{ margin: '0 0 4px 0' }}>Onaylayan: {kayit.is_emri_bilgisi.olusturan}</p>
+                <p style={{ margin: 0 }}>
+                  Tarih: {new Date(kayit.is_emri_bilgisi.olusturulma_zamani).toLocaleString('tr-TR')}
+                </p>
+              </div>
+            ) : kayit.kaynak === 'REPLAY' ? (
+              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                Replay (simülasyon) kaynaklı değerlendirmelerden otomatik iş emri açılması sistem politikası gereği kısıtlanmıştır.
+              </p>
+            ) : kayit.kaynak === 'MANUEL' || kayit.kaynak === 'ENTEGRASYON' ? (
+              <>
+                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                  Öneriyi onaylayarak iş emri oluşturabilir veya değerlendirmeyi reddedebilirsiniz.
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="buton-primer"
+                    style={{ width: 'auto' }}
+                    onClick={() => {
+                      setIsEmriBaslik(`${kayit.makine.ad} - ${anaAksiyonMetni(bakim_karari.ana_aksiyon)}`)
+                      setIsEmriAciklama(
+                        `Makine: ${kayit.makine.ad} (${kayit.makine.kod})\nÖncelik: ${oncelikSeviyesiMetni(bakim_karari.oncelik_seviyesi)}\nAna Aksiyon: ${anaAksiyonMetni(bakim_karari.ana_aksiyon)}\nKarar Gerekçeleri: ${bakim_karari.gerekceler?.map((g) => g.mesaj).join('; ') || 'Yok'}`
+                      )
+                      setIdempotencyKey(crypto.randomUUID())
+                      setIsEmriHatasi(null)
+                      setIsEmriModalAcik(true)
+                    }}
+                  >
+                    <Wrench size={18} />
+                    <span>Onayla</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="buton-sekonder"
+                    style={{ width: 'auto' }}
+                    onClick={() => {
+                      setRedHatasi(null)
+                      setRedTraceId(null)
+                      setRedModalAcik(true)
+                    }}
+                  >
+                    Reddet
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
       )}
 
@@ -545,10 +703,122 @@ export function TahminDetay() {
             {bakim_karari?.motor_surumu && (
               <div><strong>Bakım Karar Motoru Sürümü:</strong> {bakim_karari.motor_surumu}</div>
             )}
-            <div><strong>Oluşturan Kullanıcı:</strong> {kayit.olusturan.kullanici_adi} (ID: {kayit.olusturan.id})</div>
           </div>
         )}
       </div>
+
+      {/* İş Emri Oluşturma Modal */}
+      {isEmriModalAcik && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '16px',
+          }}
+        >
+          <div className="kart" style={{ maxWidth: '520px', width: '100%' }}>
+            <h3>Bakım Kararını Onayla</h3>
+            <p>Bu değerlendirmeyi onayladığınızda bakım ekibi için bir iş emri oluşturulacaktır.</p>
+            {isEmriHatasi && <ErrorState mesaj={isEmriHatasi} />}
+
+            <form onSubmit={(e) => void isEmriSubmit(e)}>
+              <div>
+                <label htmlFor="is-emri-baslik">İş Emri Başlığı</label>
+                <input
+                  id="is-emri-baslik"
+                  type="text"
+                  value={isEmriBaslik}
+                  onChange={(e) => setIsEmriBaslik(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="is-emri-aciklama">Açıklama ve Talimatlar</label>
+                <textarea
+                  id="is-emri-aciklama"
+                  value={isEmriAciklama}
+                  onChange={(e) => setIsEmriAciklama(e.target.value)}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '11px 14px',
+                    font: 'inherit',
+                    fontSize: '0.95rem',
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="buton-sekonder"
+                  onClick={() => setIsEmriModalAcik(false)}
+                  disabled={isEmriOlusturuluyor}
+                >
+                  İptal
+                </button>
+                <button type="submit" className="buton-primer" disabled={isEmriOlusturuluyor}>
+                  {isEmriOlusturuluyor ? 'Oluşturuluyor...' : 'Onayla ve İş Emri Oluştur'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {redModalAcik && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '16px',
+          }}
+        >
+          <div className="kart" style={{ maxWidth: '520px', width: '100%' }}>
+            <h3>Değerlendirmeyi Reddet</h3>
+            <p>Bu öneriyi reddetmek istediğinizi onaylayın. İsterseniz bir neden belirtebilirsiniz.</p>
+            {redHatasi && <ErrorState mesaj={redHatasi} traceId={redTraceId} />}
+
+            <form onSubmit={(e) => void reddetSubmit(e)}>
+              <label htmlFor="red-nedeni">Red nedeni (isteğe bağlı)</label>
+              <textarea
+                id="red-nedeni"
+                value={redNedeni}
+                onChange={(e) => setRedNedeni(e.target.value)}
+                rows={4}
+                style={{ width: '100%' }}
+              />
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="buton-sekonder"
+                  onClick={() => setRedModalAcik(false)}
+                  disabled={reddediliyor}
+                >
+                  İptal
+                </button>
+                <button type="submit" className="buton-primer" disabled={reddediliyor}>
+                  {reddediliyor ? 'Reddediliyor...' : 'Reddetmeyi Onayla'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

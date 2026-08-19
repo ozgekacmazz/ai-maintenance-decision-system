@@ -118,6 +118,10 @@ const MOCK_DETAIL_FULL: TahminKaydiDetay = {
     tedarik_riski_skoru: 10,
     nihai_oncelik_skoru: 75,
     oncelik_seviyesi: 'KRITIK',
+    genel_oncelik: 4,
+    stok_katsayisi: '1.10',
+    ham_genel_oncelik: '4.6750',
+    genel_oncelik_formul_surumu: 'general-priority-1.0.0',
     ana_aksiyon: 'ACIL_TEKNIK_DEGERLENDIRME',
     destekleyici_aksiyonlar: ['STOK_VERISINI_DOGRULA', 'TEDARIK_SURECINI_BASLAT'],
     ana_ariza_tipi: 'PWF',
@@ -138,6 +142,8 @@ const MOCK_DETAIL_FULL: TahminKaydiDetay = {
     ],
     olusturulma_zamani: '2026-08-19T10:30:05Z',
   },
+  red_bilgisi: null,
+  is_emri_bilgisi: null,
 }
 
 function renderComponent(tahminId = 'd9b3a1e2-4f5c-6b7a-8d9e-0f1a2b3c4d5e') {
@@ -201,6 +207,158 @@ describe('TahminDetay', () => {
     await userEvent.click(screen.getByRole('button', { name: /Teknik Detaylar/ }))
     expect(screen.getByText(/binary-failure-1.0.0/)).toBeInTheDocument()
     expect(screen.getByText(/tr-998877/)).toBeInTheDocument()
+  })
+
+  it('kararsız uygun tahminde onay ve red aksiyonlarını, onay modalında iş emri sonucunu açıkça gösterir', async () => {
+    vi.spyOn(tahminApi, 'tahminKaydiDetayiGetir').mockResolvedValue(MOCK_DETAIL_FULL)
+    renderComponent()
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Onayla' })).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Reddet' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Onayla' }))
+
+    expect(screen.getByText('Bakım Kararını Onayla')).toBeInTheDocument()
+    expect(screen.getByText(/onayladığınızda bakım ekibi için bir iş emri oluşturulacaktır/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Onayla ve İş Emri Oluştur' })).toBeInTheDocument()
+  })
+
+  it('başarılı reddetmede güncel kaydı gösterir ve karar aksiyonlarını kaldırır', async () => {
+    const reddedilmisKayit: TahminKaydiDetay = {
+      ...MOCK_DETAIL_FULL,
+      red_bilgisi: {
+        reddeden: 'bakim.uzmani',
+        reddetme_zamani: '2026-08-19T12:00:00Z',
+        red_nedeni: 'Sensör kalibrasyonu bekleniyor.',
+      },
+    }
+    vi.spyOn(tahminApi, 'tahminKaydiDetayiGetir').mockResolvedValue(MOCK_DETAIL_FULL)
+    const reddetMock = vi.spyOn(tahminApi, 'tahminReddet').mockResolvedValue(reddedilmisKayit)
+    renderComponent()
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reddet' })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Reddet' }))
+    await userEvent.type(screen.getByLabelText('Red nedeni (isteğe bağlı)'), 'Sensör kalibrasyonu bekleniyor.')
+    await userEvent.click(screen.getByRole('button', { name: 'Reddetmeyi Onayla' }))
+
+    await waitFor(() => expect(screen.getByText('Bu değerlendirme reddedildi')).toBeInTheDocument())
+    expect(reddetMock).toHaveBeenCalledWith(MOCK_DETAIL_FULL.id, 'Sensör kalibrasyonu bekleniyor.')
+    expect(screen.queryByText('Değerlendirmeyi Reddet')).not.toBeInTheDocument()
+    expect(screen.getByText('Reddeden: bakim.uzmani')).toBeInTheDocument()
+    expect(screen.getByText(/Tarih:/)).toBeInTheDocument()
+    expect(screen.getByText('Neden: Sensör kalibrasyonu bekleniyor.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Onayla' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reddet' })).not.toBeInTheDocument()
+  })
+
+  it('reddetme hatasını modal içinde gösterir, kaydı değiştirmez ve tekrar denemeye izin verir', async () => {
+    vi.spyOn(tahminApi, 'tahminKaydiDetayiGetir').mockResolvedValue(MOCK_DETAIL_FULL)
+    const reddetMock = vi.spyOn(tahminApi, 'tahminReddet')
+      .mockRejectedValueOnce(new ApiHatasi(503, 'SERVIS_HATASI', 'Reddetme tamamlanamadı.', {}, 'trace-red-1'))
+      .mockResolvedValueOnce({
+        ...MOCK_DETAIL_FULL,
+        red_bilgisi: {
+          reddeden: 'bakim.uzmani',
+          reddetme_zamani: '2026-08-19T12:00:00Z',
+          red_nedeni: 'Kullanıcı tarafından reddedildi.',
+        },
+      })
+    renderComponent()
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reddet' })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Reddet' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Reddetmeyi Onayla' }))
+
+    await waitFor(() => expect(screen.getByText(/Reddetme tamamlanamadı/)).toBeInTheDocument())
+    expect(screen.getAllByText(/trace-red-1/).length).toBeGreaterThan(0)
+    expect(screen.getByText('Değerlendirmeyi Reddet')).toBeInTheDocument()
+    expect(screen.queryByText('Bu değerlendirme reddedildi')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reddetmeyi Onayla' }))
+    await waitFor(() => expect(reddetMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('önceden reddedilmiş tahminde red özetini gösterir ve karar aksiyonlarını gizler', async () => {
+    vi.spyOn(tahminApi, 'tahminKaydiDetayiGetir').mockResolvedValue({
+      ...MOCK_DETAIL_FULL,
+      red_bilgisi: {
+        reddeden: 'operator.1',
+        reddetme_zamani: '2026-08-19T12:00:00Z',
+        red_nedeni: 'Yanlış alarm.',
+      },
+    })
+    renderComponent()
+
+    await waitFor(() => expect(screen.getByText('Bu değerlendirme reddedildi')).toBeInTheDocument())
+    expect(screen.getByText('Reddeden: operator.1')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Onayla' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reddet' })).not.toBeInTheDocument()
+  })
+
+  it('önceden onaylanmış tahminde iş emri özetini gösterir ve karar aksiyonlarını gizler', async () => {
+    vi.spyOn(tahminApi, 'tahminKaydiDetayiGetir').mockResolvedValue({
+      ...MOCK_DETAIL_FULL,
+      is_emri_bilgisi: {
+        id: '7f42480e-4dc6-4de5-a5c0-6d1f947cd271',
+        is_emri_numarasi: 'WO-2026-7F42480E4DC6',
+        durum: 'ACIK',
+        olusturan: 'bakim.uzmani',
+        olusturulma_zamani: '2026-08-19T12:00:00Z',
+      },
+    })
+    renderComponent()
+
+    await waitFor(() => expect(screen.getByText('Bu bakım kararı onaylandı')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'WO-2026-7F42480E4DC6' })).toBeInTheDocument()
+    expect(screen.getByText('Durum: Açık')).toBeInTheDocument()
+    expect(screen.getByText('Onaylayan: bakim.uzmani')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Onayla' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reddet' })).not.toBeInTheDocument()
+  })
+
+  it('red ve iş emri bilgisi birlikte geldiğinde savunmacı olarak karar aksiyonlarını gizler', async () => {
+    vi.spyOn(tahminApi, 'tahminKaydiDetayiGetir').mockResolvedValue({
+      ...MOCK_DETAIL_FULL,
+      red_bilgisi: {
+        reddeden: 'operator.1',
+        reddetme_zamani: '2026-08-19T12:00:00Z',
+        red_nedeni: 'Yanlış alarm.',
+      },
+      is_emri_bilgisi: {
+        id: '7f42480e-4dc6-4de5-a5c0-6d1f947cd271',
+        is_emri_numarasi: 'WO-2026-7F42480E4DC6',
+        durum: 'ACIK',
+        olusturan: 'bakim.uzmani',
+        olusturulma_zamani: '2026-08-19T12:00:00Z',
+      },
+    })
+    renderComponent()
+
+    await waitFor(() => expect(screen.getByText('Bu değerlendirme reddedildi')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Onayla' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reddet' })).not.toBeInTheDocument()
+  })
+
+  it('reddetme isteği sürerken ikinci gönderimi engeller', async () => {
+    let resolveRed: (kayit: TahminKaydiDetay) => void = () => {}
+    const redPromise = new Promise<TahminKaydiDetay>((resolve) => {
+      resolveRed = resolve
+    })
+    vi.spyOn(tahminApi, 'tahminKaydiDetayiGetir').mockResolvedValue(MOCK_DETAIL_FULL)
+    const reddetMock = vi.spyOn(tahminApi, 'tahminReddet').mockReturnValue(redPromise)
+    renderComponent()
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reddet' })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Reddet' }))
+    const submitButton = screen.getByRole('button', { name: 'Reddetmeyi Onayla' })
+    await userEvent.click(submitButton)
+
+    expect(screen.getByRole('button', { name: 'Reddediliyor...' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Reddediliyor...' }))
+    expect(reddetMock).toHaveBeenCalledTimes(1)
+
+    resolveRed({ ...MOCK_DETAIL_FULL, red_bilgisi: null })
+    await waitFor(() => expect(screen.queryByText('Değerlendirmeyi Reddet')).not.toBeInTheDocument())
   })
 
   it('404 durumunda kullanıcı dostu bulunamadı ekranı sunar', async () => {

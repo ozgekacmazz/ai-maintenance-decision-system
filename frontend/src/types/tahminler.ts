@@ -7,6 +7,18 @@ export interface RiskTahminiGirdi {
   takim_asinmasi_dk: number
 }
 
+export interface InputDomainField {
+  canonical_unit: string
+  display_unit: string
+  supported_min: number
+  supported_max: number
+}
+
+export interface InputDomainContract {
+  contract_version: string
+  fields: Record<Exclude<keyof RiskTahminiGirdi, 'urun_tipi'>, InputDomainField>
+}
+
 export interface GuvenilirAday {
   kod: string
   olasilik: number
@@ -84,6 +96,8 @@ export interface TahminKaydiOzet {
   erp_snapshot_var: boolean
   nihai_oncelik_skoru: number | null
   oncelik_seviyesi: 'KRITIK' | 'YUKSEK' | 'ORTA' | 'DUSUK' | null
+  genel_oncelik: 1 | 2 | 3 | 4 | 5 | null
+  genel_oncelik_formul_surumu: string | null
   ana_aksiyon:
     | 'ACIL_TEKNIK_DEGERLENDIRME'
     | 'ONCELIKLI_BAKIM_PLANLA'
@@ -101,6 +115,54 @@ export interface SayfalanmisYanit<T> {
   results: T[]
 }
 
+export type TahminKararDurumu = 'BEKLIYOR' | 'ONAYLANDI' | 'REDDEDILDI' | 'TUTARSIZ'
+
+export interface TahminLoguIsEmriOzeti {
+  id: string
+  is_emri_numarasi: string
+  durum: string
+  olusturan: string
+  olusturulma_zamani: string
+}
+
+export interface TahminLoguRedOzeti {
+  reddeden: string
+  reddetme_zamani: string
+  red_nedeni: string | null
+}
+
+export interface TahminLogu {
+  id: string
+  olcum_zamani: string
+  makine: { id: number; kod: string; ad: string }
+  kaynak: 'MANUEL' | 'ENTEGRASYON' | 'REPLAY'
+  risk_orani: number
+  risk_uyarisi: boolean
+  genel_oncelik: 1 | 2 | 3 | 4 | 5 | null
+  legacy_oncelik_seviyesi: 'KRITIK' | 'YUKSEK' | 'ORTA' | 'DUSUK' | null
+  legacy_nihai_oncelik_skoru: number | null
+  karar_durumu: TahminKararDurumu
+  karar_veren: string | null
+  karar_zamani: string | null
+  karar_nedeni: string | null
+  is_emri_bilgisi: TahminLoguIsEmriOzeti | null
+  onay_bilgisi: TahminLoguIsEmriOzeti | null
+  red_bilgisi: TahminLoguRedOzeti | null
+}
+
+export interface TahminLoglariParametreleri {
+  karar_durumu?: TahminKararDurumu
+  makine_id?: number
+  makine_kodu?: string
+  kaynak?: TahminLogu['kaynak']
+  baslangic?: string
+  bitis?: string
+  genel_oncelik?: 1 | 2 | 3 | 4 | 5
+  sirala?: 'olcum_zamani' | '-olcum_zamani' | 'risk_orani' | '-risk_orani' | 'genel_oncelik' | '-genel_oncelik' | 'karar_zamani' | '-karar_zamani'
+  sayfa?: number
+  sayfa_boyutu?: number
+}
+
 export interface MakineOzet {
   id: number
   kod: string
@@ -108,6 +170,12 @@ export interface MakineOzet {
   tip?: string
   kritiklik?: number
   aktif?: boolean
+}
+
+export interface KullaniciOzeti {
+  id: number
+  kullanici_adi: string
+  email?: string
 }
 
 export interface TahminKaydiYazmaGirdi {
@@ -152,6 +220,10 @@ export interface BakimKarariSnapshotInfo {
   tedarik_riski_skoru: number
   nihai_oncelik_skoru: number
   oncelik_seviyesi: 'KRITIK' | 'YUKSEK' | 'ORTA' | 'DUSUK' | string
+  genel_oncelik: 1 | 2 | 3 | 4 | 5 | null
+  stok_katsayisi: string | null
+  ham_genel_oncelik: string | null
+  genel_oncelik_formul_surumu: string | null
   ana_aksiyon: string
   destekleyici_aksiyonlar: string[]
   ana_ariza_tipi: string | null
@@ -159,6 +231,36 @@ export interface BakimKarariSnapshotInfo {
   gerekceler: KararGerekcesi[]
   uyarilar: KararUyarisi[]
   olusturulma_zamani: string
+}
+
+export type TahminKaydiSiralama =
+  | 'nihai_oncelik'
+  | '-nihai_oncelik'
+  | 'genel_oncelik'
+  | '-genel_oncelik'
+  | 'olcum_zamani'
+  | '-olcum_zamani'
+  | 'risk_orani'
+  | '-risk_orani'
+  | 'makine_kritiklik'
+  | '-makine_kritiklik'
+
+export interface TahminKaydiListeParametreleri {
+  makine_id?: number
+  genel_oncelik?: 1 | 2 | 3 | 4 | 5
+  risk_uyarisi?: boolean
+  kaynak?: string
+  olcum_zamani_baslangic?: string
+  olcum_zamani_bitis?: string
+  ariza_tipi?: string
+  oncelik_seviyesi?: string
+  ana_aksiyon?: string
+  karar_guveni?: string
+  minimum_nihai_skor?: number
+  maksimum_nihai_skor?: number
+  sirala?: TahminKaydiSiralama | (string & {})
+  sayfa?: number
+  sayfa_boyutu?: number
 }
 
 export interface ArizaTipiItem {
@@ -210,6 +312,18 @@ export interface TahminKaydiDetay {
   }
   trace_id: string
   bakim_karari: BakimKarariSnapshotInfo | null
+  red_bilgisi?: {
+    reddeden: string
+    reddetme_zamani: string
+    red_nedeni: string
+  } | null
+  is_emri_bilgisi?: {
+    id: string
+    is_emri_numarasi: string
+    durum: string
+    olusturan: string
+    olusturulma_zamani: string
+  } | null
 }
 
 export function arizaTipiMetni(kod: string | null | undefined): string {

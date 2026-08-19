@@ -9,7 +9,7 @@ import {
   kararGuveniMetni,
   kaynakMetni,
 } from '../types/tahminler'
-import { StatusBadge } from '../components/feedback/StatusBadge'
+import { GeneralPriorityBadge } from '../components/feedback/GeneralPriorityBadge'
 import { LoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 import { EmptyState } from '../components/feedback/EmptyState'
 import { ErrorState } from '../components/feedback/ErrorState'
@@ -26,9 +26,10 @@ export function TahminGecmisi() {
   const [sayfa, setSayfa] = useState(1)
   const [riskUyarisi, setRiskUyarisi] = useState<string>('')
   const [oncelikSeviyesi, setOncelikSeviyesi] = useState<string>('')
+  const [genelOncelik, setGenelOncelik] = useState<string>('')
   const [kararGuveni, setKararGuveni] = useState<string>('')
   const [kaynak, setKaynak] = useState<string>('')
-  const [sirala, setSirala] = useState<string>('-olcum_zamani')
+  const [sirala, setSirala] = useState<string>('-genel_oncelik')
   const [yenilemeSayaci, setYenilemeSayaci] = useState(0)
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export function TahminGecmisi() {
           sayfa_boyutu: 10,
           risk_uyarisi: riskUyarisi === 'true' ? true : riskUyarisi === 'false' ? false : undefined,
           oncelik_seviyesi: oncelikSeviyesi || undefined,
+          genel_oncelik: genelOncelik ? Number(genelOncelik) as 1 | 2 | 3 | 4 | 5 : undefined,
           karar_guveni: kararGuveni || undefined,
           kaynak: kaynak || undefined,
           sirala: sirala || undefined,
@@ -67,7 +69,7 @@ export function TahminGecmisi() {
     return () => {
       aktif = false
     }
-  }, [sayfa, riskUyarisi, oncelikSeviyesi, kararGuveni, kaynak, sirala, yenilemeSayaci])
+  }, [sayfa, riskUyarisi, oncelikSeviyesi, genelOncelik, kararGuveni, kaynak, sirala, yenilemeSayaci])
 
   return (
     <div className="sayfa-konteyner">
@@ -148,6 +150,14 @@ export function TahminGecmisi() {
           </div>
 
           <div>
+            <label htmlFor="filtre-genel-oncelik">Genel Öncelik</label>
+            <select id="filtre-genel-oncelik" value={genelOncelik} onChange={(e) => { setGenelOncelik(e.target.value); setSayfa(1) }}>
+              <option value="">Tümü</option>
+              {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>Öncelik {value}/5</option>)}
+            </select>
+          </div>
+
+          <div>
             <label htmlFor="filtre-kaynak">Değerlendirme Kaynağı</label>
             <select
               id="filtre-kaynak"
@@ -177,6 +187,8 @@ export function TahminGecmisi() {
               <option value="-olcum_zamani">Ölçüm Zamanı (Yeniden Eskiye)</option>
               <option value="olcum_zamani">Ölçüm Zamanı (Eskiden Yeniye)</option>
               <option value="-nihai_oncelik">Bakım Önceliği (Yüksekten Düşüğe)</option>
+              <option value="-genel_oncelik">Genel Öncelik (5–1)</option>
+              <option value="genel_oncelik">Genel Öncelik (1–5)</option>
               <option value="-risk_orani">Risk Oranı (Yüksekten Düşüğe)</option>
             </select>
           </div>
@@ -252,11 +264,10 @@ export function TahminGecmisi() {
                         : arizaTipiMetni(kayit.en_yuksek_guvenilir_ariza_tipi)}
                     </td>
                     <td>
-                      {kayit.oncelik_seviyesi ? (
-                        <StatusBadge oncelik={kayit.oncelik_seviyesi} />
-                      ) : (
-                        <span className="alt-bilgi">-</span>
-                      )}
+                      <GeneralPriorityBadge
+                        genelOncelik={kayit.genel_oncelik}
+                        legacyOncelik={kayit.oncelik_seviyesi}
+                      />
                     </td>
                     <td>{anaAksiyonMetni(kayit.ana_aksiyon)}</td>
                     <td>{kararGuveniMetni(kayit.karar_guveni)}</td>

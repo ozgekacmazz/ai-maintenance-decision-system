@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Activity,
@@ -13,19 +13,29 @@ import {
   Plus,
 } from 'lucide-react'
 
-import { hizliRiskTahmini } from '../api/tahminler'
-import type { RiskTahminiGirdi, RiskTahminiYaniti } from '../types/tahminler'
+import { hizliRiskTahmini, inputDomainContractGetir } from '../api/tahminler'
+import type { InputDomainContract, RiskTahminiYaniti } from '../types/tahminler'
 import {
   arizaTipiMetni,
   yonMetni,
 } from '../types/tahminler'
 import { ApiHatasi } from '../types/apiHata'
 import { ErrorState } from '../components/feedback/ErrorState'
+import { celsiusToKelvin, kelvinToCelsius } from '../utils/temperature'
 
-const VARSAYILAN_GIRDI: RiskTahminiGirdi = {
+type FormGirdisi = {
+  urun_tipi: 'L' | 'M' | 'H'
+  hava_sicakligi_k: number | ''
+  proses_sicakligi_k: number | ''
+  donus_hizi_rpm: number | ''
+  tork_nm: number | ''
+  takim_asinmasi_dk: number | ''
+}
+
+const VARSAYILAN_GIRDI: FormGirdisi = {
   urun_tipi: 'L',
-  hava_sicakligi_k: 298.1,
-  proses_sicakligi_k: 308.6,
+  hava_sicakligi_k: 24.95,
+  proses_sicakligi_k: 35.45,
   donus_hizi_rpm: 1551,
   tork_nm: 42.8,
   takim_asinmasi_dk: 0,
@@ -33,7 +43,8 @@ const VARSAYILAN_GIRDI: RiskTahminiGirdi = {
 
 export function HizliAnaliz() {
   const navigate = useNavigate()
-  const [girdi, setGirdi] = useState<RiskTahminiGirdi>(VARSAYILAN_GIRDI)
+  const [girdi, setGirdi] = useState<FormGirdisi>(VARSAYILAN_GIRDI)
+  const [domain, setDomain] = useState<InputDomainContract | null>(null)
   const [analizEdiliyor, setAnalizEdiliyor] = useState(false)
   const [sonuc, setSonuc] = useState<RiskTahminiYaniti | null>(null)
   const [hata, setHata] = useState<string | null>(null)
@@ -41,10 +52,18 @@ export function HizliAnaliz() {
   const [traceId, setTraceId] = useState<string | null>(null)
   const [teknikAcik, setTeknikAcik] = useState(false)
 
-  function alanDegistir(anahtar: keyof RiskTahminiGirdi, deger: string) {
+  useEffect(() => {
+    let aktif = true
+    inputDomainContractGetir()
+      .then((contract) => { if (aktif) setDomain(contract) })
+      .catch(() => { if (aktif) setHata('Girdi aralıkları yüklenemedi. Analiz başlatılamıyor.') })
+    return () => { aktif = false }
+  }, [])
+
+  function alanDegistir(anahtar: keyof FormGirdisi, deger: string) {
     setGirdi((onceki) => ({
       ...onceki,
-      [anahtar]: anahtar === 'urun_tipi' ? (deger as 'L' | 'M' | 'H') : parseFloat(deger) || 0,
+      [anahtar]: anahtar === 'urun_tipi' ? (deger as 'L' | 'M' | 'H') : deger === '' ? '' : Number(deger),
     }))
     if (alanHatalari[anahtar]) {
       setAlanHatalari((onceki) => {
@@ -57,13 +76,45 @@ export function HizliAnaliz() {
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (!domain) {
+      setHata('Girdi aralıkları yüklenmeden analiz başlatılamaz.')
+      return
+    }
     setAnalizEdiliyor(true)
+    setSonuc(null)
     setHata(null)
     setAlanHatalari({})
     setTraceId(null)
 
     try {
-      const res = await hizliRiskTahmini(girdi)
+      const sayisalAlanlar = Object.keys(domain.fields) as Array<keyof InputDomainContract['fields']>
+      const istemciHatalari: Record<string, string[]> = {}
+      for (const alan of sayisalAlanlar) {
+        const deger = girdi[alan]
+        if (deger === '' || !Number.isFinite(deger)) {
+          istemciHatalari[alan] = ['Geçerli bir sayı girilmelidir.']
+          continue
+        }
+        const cfg = domain.fields[alan]
+        const kanonikDeger = alan === 'hava_sicakligi_k' || alan === 'proses_sicakligi_k'
+          ? celsiusToKelvin(deger)
+          : deger
+        if (kanonikDeger < cfg.supported_min || kanonikDeger > cfg.supported_max) {
+          istemciHatalari[alan] = ['Değer desteklenen çalışma aralığının dışında.']
+        }
+      }
+      if (Object.keys(istemciHatalari).length > 0) {
+        setAlanHatalari(istemciHatalari)
+        return
+      }
+      const res = await hizliRiskTahmini({
+        urun_tipi: girdi.urun_tipi,
+        hava_sicakligi_k: celsiusToKelvin(girdi.hava_sicakligi_k as number),
+        proses_sicakligi_k: celsiusToKelvin(girdi.proses_sicakligi_k as number),
+        donus_hizi_rpm: girdi.donus_hizi_rpm as number,
+        tork_nm: girdi.tork_nm as number,
+        takim_asinmasi_dk: girdi.takim_asinmasi_dk as number,
+      })
       setSonuc(res)
     } catch (err: unknown) {
       if (err instanceof ApiHatasi) {
@@ -118,17 +169,20 @@ export function HizliAnaliz() {
               </div>
 
               <div>
-                <label htmlFor="hava_sicakligi_k">Hava Sıcaklığı</label>
+                <label htmlFor="hava_sicakligi_k">
+                  Hava sıcaklığı (°C) {domain && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({kelvinToCelsius(domain.fields.hava_sicakligi_k.supported_min).toFixed(1)} - {kelvinToCelsius(domain.fields.hava_sicakligi_k.supported_max).toFixed(1)} °C)</span>}
+                </label>
                 <div className="input-birimli">
                   <input
                     id="hava_sicakligi_k"
                     type="number"
-                    step="0.1"
-                    min="0"
+                    step="any"
+                    min={domain ? kelvinToCelsius(domain.fields.hava_sicakligi_k.supported_min) : undefined}
+                    max={domain ? kelvinToCelsius(domain.fields.hava_sicakligi_k.supported_max) : undefined}
                     value={girdi.hava_sicakligi_k}
                     onChange={(e) => alanDegistir('hava_sicakligi_k', e.target.value)}
                   />
-                  <span className="input-birim">K</span>
+                  <span className="input-birim">°C</span>
                 </div>
                 {alanHatalari.hava_sicakligi_k && (
                   <p className="alan-hatasi">{alanHatalari.hava_sicakligi_k.join(' ')}</p>
@@ -136,17 +190,20 @@ export function HizliAnaliz() {
               </div>
 
               <div>
-                <label htmlFor="proses_sicakligi_k">Proses Sıcaklığı</label>
+                <label htmlFor="proses_sicakligi_k">
+                  Proses sıcaklığı (°C) {domain && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({kelvinToCelsius(domain.fields.proses_sicakligi_k.supported_min).toFixed(1)} - {kelvinToCelsius(domain.fields.proses_sicakligi_k.supported_max).toFixed(1)} °C)</span>}
+                </label>
                 <div className="input-birimli">
                   <input
                     id="proses_sicakligi_k"
                     type="number"
-                    step="0.1"
-                    min="0"
+                    step="any"
+                    min={domain ? kelvinToCelsius(domain.fields.proses_sicakligi_k.supported_min) : undefined}
+                    max={domain ? kelvinToCelsius(domain.fields.proses_sicakligi_k.supported_max) : undefined}
                     value={girdi.proses_sicakligi_k}
                     onChange={(e) => alanDegistir('proses_sicakligi_k', e.target.value)}
                   />
-                  <span className="input-birim">K</span>
+                  <span className="input-birim">°C</span>
                 </div>
                 {alanHatalari.proses_sicakligi_k && (
                   <p className="alan-hatasi">{alanHatalari.proses_sicakligi_k.join(' ')}</p>
@@ -154,13 +211,16 @@ export function HizliAnaliz() {
               </div>
 
               <div>
-                <label htmlFor="donus_hizi_rpm">Dönüş Hızı</label>
+                <label htmlFor="donus_hizi_rpm">
+                  Dönüş Hızı {domain && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({domain.fields.donus_hizi_rpm.supported_min} - {domain.fields.donus_hizi_rpm.supported_max} rpm)</span>}
+                </label>
                 <div className="input-birimli">
                   <input
                     id="donus_hizi_rpm"
                     type="number"
                     step="1"
-                    min="0"
+                    min={domain?.fields.donus_hizi_rpm.supported_min}
+                    max={domain?.fields.donus_hizi_rpm.supported_max}
                     value={girdi.donus_hizi_rpm}
                     onChange={(e) => alanDegistir('donus_hizi_rpm', e.target.value)}
                   />
@@ -172,13 +232,16 @@ export function HizliAnaliz() {
               </div>
 
               <div>
-                <label htmlFor="tork_nm">Tork</label>
+                <label htmlFor="tork_nm">
+                  Tork {domain && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({domain.fields.tork_nm.supported_min} - {domain.fields.tork_nm.supported_max} N·m)</span>}
+                </label>
                 <div className="input-birimli">
                   <input
                     id="tork_nm"
                     type="number"
                     step="0.1"
-                    min="0"
+                    min={domain?.fields.tork_nm.supported_min}
+                    max={domain?.fields.tork_nm.supported_max}
                     value={girdi.tork_nm}
                     onChange={(e) => alanDegistir('tork_nm', e.target.value)}
                   />
@@ -190,17 +253,20 @@ export function HizliAnaliz() {
               </div>
 
               <div className="form-grid-tam">
-                <label htmlFor="takim_asinmasi_dk">Takım Aşınması</label>
+                <label htmlFor="takim_asinmasi_dk">
+                  Takım Aşınması {domain && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({domain.fields.takim_asinmasi_dk.supported_min} - {domain.fields.takim_asinmasi_dk.supported_max} dk)</span>}
+                </label>
                 <div className="input-birimli">
                   <input
                     id="takim_asinmasi_dk"
                     type="number"
                     step="1"
-                    min="0"
+                    min={domain?.fields.takim_asinmasi_dk.supported_min}
+                    max={domain?.fields.takim_asinmasi_dk.supported_max}
                     value={girdi.takim_asinmasi_dk}
                     onChange={(e) => alanDegistir('takim_asinmasi_dk', e.target.value)}
                   />
-                  <span className="input-birim">dakika</span>
+                  <span className="input-birim">dk</span>
                 </div>
                 {alanHatalari.takim_asinmasi_dk && (
                   <p className="alan-hatasi">{alanHatalari.takim_asinmasi_dk.join(' ')}</p>
@@ -212,7 +278,7 @@ export function HizliAnaliz() {
 
             <button
               type="submit"
-              disabled={analizEdiliyor}
+              disabled={analizEdiliyor || !domain}
               style={{ marginTop: '12px' }}
             >
               {analizEdiliyor ? (

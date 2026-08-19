@@ -80,8 +80,8 @@ describe('KaliciDegerlendirme', () => {
       expect(screen.getByText('M-101 — Pres Motoru 1')).toBeInTheDocument()
     })
 
-    expect(screen.getByLabelText('Ürün Tipi')).toBeInTheDocument()
-    expect(screen.getByLabelText('Hava Sıcaklığı')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Ürün Tipi/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Hava Sıcaklığı/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Değerlendirmeyi Kaydet' })).toBeInTheDocument()
   })
 

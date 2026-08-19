@@ -6,6 +6,15 @@ import { HizliAnaliz } from './pages/HizliAnaliz'
 import { TahminGecmisi } from './pages/TahminGecmisi'
 import { KaliciDegerlendirme } from './pages/KaliciDegerlendirme'
 import { TahminDetay } from './pages/TahminDetay'
+import { IsEmirleri } from './pages/IsEmirleri'
+import { IsEmriDetay } from './pages/IsEmriDetay'
+import { ReplayListesi } from './pages/ReplayListesi'
+import { ReplayDetay } from './pages/ReplayDetay'
+import { MakineYonetimi } from './pages/MakineYonetimi'
+import { StokYonetimi } from './pages/StokYonetimi'
+import { KullaniciYonetimi } from './pages/KullaniciYonetimi'
+import { TahminLoglari } from './pages/TahminLoglari'
+import { AdminRoute } from './components/routing/AdminRoute'
 import { Login } from './pages/Login'
 import './app/styles.css'
 
@@ -47,6 +56,16 @@ function KorumaliUygulama() {
         <Route path="tahminler" element={<TahminGecmisi />} />
         <Route path="tahminler/yeni" element={<KaliciDegerlendirme />} />
         <Route path="tahminler/:tahminId" element={<TahminDetay />} />
+        <Route path="is-emirleri" element={<IsEmirleri />} />
+        <Route path="is-emirleri/:isEmriId" element={<IsEmriDetay />} />
+        <Route path="replay" element={<ReplayListesi />} />
+        <Route path="replay/:sessionId" element={<ReplayDetay />} />
+        <Route path="yonetim" element={<AdminRoute />}>
+          <Route path="makineler" element={<MakineYonetimi />} />
+          <Route path="stok" element={<StokYonetimi />} />
+          <Route path="kullanicilar" element={<KullaniciYonetimi />} />
+          <Route path="tahmin-loglari" element={<TahminLoglari />} />
+        </Route>
       </Route>
       <Route path="/login" element={<Navigate to="/app" replace />} />
       <Route path="/" element={<Navigate to="/app" replace />} />

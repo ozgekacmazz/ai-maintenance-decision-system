@@ -23,6 +23,20 @@ export function Header({ sidebarAcik, onToggleSidebar }: HeaderProps) {
     sayfaBasligi = 'Tahmin Geçmişi'
   } else if (path.startsWith('/app/tahminler/')) {
     sayfaBasligi = 'Değerlendirme Detayı'
+  } else if (path === '/app/is-emirleri') {
+    sayfaBasligi = 'İş Emirleri'
+  } else if (path.startsWith('/app/is-emirleri/')) {
+    sayfaBasligi = 'İş Emri Detayı'
+  } else if (path === '/app/replay') {
+    sayfaBasligi = 'Sensör Replay'
+  } else if (path.startsWith('/app/replay/')) {
+    sayfaBasligi = 'Replay Oturumu'
+  } else if (path === '/app/yonetim/makineler') {
+    sayfaBasligi = 'Makine Yönetimi'
+  } else if (path === '/app/yonetim/stok') {
+    sayfaBasligi = 'Stok Yönetimi'
+  } else if (path === '/app/yonetim/kullanicilar') {
+    sayfaBasligi = 'Kullanıcı Yönetimi'
   } else if (path === '/app/altyapi') {
     sayfaBasligi = 'Altyapı Kontrolü'
   }
