@@ -5,6 +5,10 @@ from apps.bakim.models import ArizaParcaKurali, Makine, Parca, Stok
 from apps.kullanicilar.policies import aktif_admin_mi
 
 
+def makine_secenekleri():
+    return Makine.objects.filter(aktif=True).order_by("makine_kodu", "id")
+
+
 def _gorunur(queryset, kullanici, alan="aktif"):
     return queryset if aktif_admin_mi(kullanici) else queryset.filter(**{alan: True})
 
