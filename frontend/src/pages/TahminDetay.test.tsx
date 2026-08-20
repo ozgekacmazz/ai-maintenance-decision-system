@@ -171,7 +171,8 @@ describe('TahminDetay', () => {
     })
 
     // Sensör Snapshot
-    expect(screen.getByText('Ölçeğin Alındığı Anki Sensör Değerleri')).toBeInTheDocument()
+    expect(screen.getByText('Ölçümün Alındığı Anki Sensör Değerleri')).toBeInTheDocument()
+    expect(screen.getAllByText('°C')).toHaveLength(2)
     expect(screen.getByText('1.500')).toBeInTheDocument()
 
     // Failure types (PWF & TWF experimental)

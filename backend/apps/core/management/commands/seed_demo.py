@@ -181,23 +181,29 @@ class Command(BaseCommand):
         # 2. MAKİNELER (8-10 Adet)
         machines = []
         machine_specs = [
-            ("M-DEMO-101", "Pres Motoru 1", 5, True),
-            ("M-DEMO-102", "Pompa Motoru 2", 4, True),
-            ("M-DEMO-103", "Ana Mil Fanı 3", 3, True),
-            ("M-DEMO-104", "Soğutma Kompresörü 4", 5, True),
-            ("M-DEMO-105", "Konveyör Bant Motoru 5", 2, True),
-            ("M-DEMO-106", "Hidrolik Güç Ünitesi 6", 4, True),
-            ("M-DEMO-107", "CMM Hava Kurutucu 7", 1, True),
-            ("M-DEMO-108", "CNC Torna Ana Spindle 8", 5, True),
-            ("M-DEMO-109", "Yedek Filtreleme Hattı 9", 2, False),
+            ("M-DEMO-101", "Pres Motoru 1", "Pres", 5, True),
+            ("M-DEMO-102", "Pompa Motoru 2", "Pompa", 4, True),
+            ("M-DEMO-103", "Ana Mil Fanı 3", "Fan", 3, True),
+            ("M-DEMO-104", "Soğutma Kompresörü 4", "Kompresör", 5, True),
+            ("M-DEMO-105", "Konveyör Bant Motoru 5", "Konveyör", 2, True),
+            ("M-DEMO-106", "Hidrolik Güç Ünitesi 6", "Hidrolik", 4, True),
+            ("M-DEMO-107", "CMM Hava Kurutucu 7", "Kurutucu", 1, True),
+            ("M-DEMO-108", "CNC Torna Ana Spindle 8", "CNC Torna", 5, True),
+            ("M-DEMO-109", "Yedek Filtreleme Hattı 9", "Filtreleme", 2, False),
         ]
-        for kod, ad, kritiklik, aktif in machine_specs:
+        for kod, ad, tip, kritiklik, aktif in machine_specs:
             m, _ = Makine.objects.get_or_create(
                 makine_kodu=kod,
-                defaults={"ad": ad, "kritiklik": kritiklik, "aktif": aktif},
+                defaults={"ad": ad, "tip": tip, "kritiklik": kritiklik, "aktif": aktif},
             )
-            if m.ad != ad or m.kritiklik != kritiklik or m.aktif != aktif:
+            if (
+                m.ad != ad
+                or m.tip != tip
+                or m.kritiklik != kritiklik
+                or m.aktif != aktif
+            ):
                 m.ad = ad
+                m.tip = tip
                 m.kritiklik = kritiklik
                 m.aktif = aktif
                 m.save()
@@ -215,6 +221,13 @@ class Command(BaseCommand):
             ("PRC-DEMO-07", "Hidrolik Valf Bloğu", 5, 1, 3),  # Normal
             ("PRC-DEMO-08", "Sensör Kablosu M12", 20, 5, 1),  # Bol Stok
         ]
+        ariza_parca_eslemeleri = {
+            "HDF": {"PRC-DEMO-02", "PRC-DEMO-06"},
+            "PWF": {"PRC-DEMO-01", "PRC-DEMO-08"},
+            "OSF": {"PRC-DEMO-03", "PRC-DEMO-04", "PRC-DEMO-07"},
+            "TWF": {"PRC-DEMO-04", "PRC-DEMO-05"},
+        }
+        demo_parcalar = {}
         for parca_kodu, ad, adet, min_stok, tedarik_gun in part_specs:
             p, _ = Parca.objects.get_or_create(
                 parca_kodu=parca_kodu,
@@ -238,16 +251,29 @@ class Command(BaseCommand):
                 stok.tedarik_gun = tedarik_gun
                 stok.save()
 
-            # ArizaParcaKurali tanımları
-            ariza_tipleri = ["HDF", "PWF", "OSF", "TWF"]
-            for index, ariza in enumerate(ariza_tipleri, start=1):
-                ArizaParcaKurali.objects.get_or_create(
+            demo_parcalar[parca_kodu] = p
+
+        ArizaParcaKurali.objects.filter(
+            parca__parca_kodu__startswith="PRC-DEMO-"
+        ).exclude(
+            models.Q(
+                *[
+                    models.Q(ariza_tipi=ariza, parca__parca_kodu__in=kodlar)
+                    for ariza, kodlar in ariza_parca_eslemeleri.items()
+                ],
+                _connector=models.Q.OR,
+            )
+        ).delete()
+        for ariza, parca_kodlari in ariza_parca_eslemeleri.items():
+            for index, parca_kodu in enumerate(sorted(parca_kodlari), start=1):
+                p = demo_parcalar[parca_kodu]
+                ArizaParcaKurali.objects.update_or_create(
                     ariza_tipi=ariza,
                     parca=p,
                     defaults={
                         "tercih_sirasi": index,
                         "gerekli_miktar": 1,
-                        "onerilen_aksiyon": f"{ad} kontrolü ve değişimi.",
+                        "onerilen_aksiyon": f"{p.ad} kontrolü ve gerekirse değişimi.",
                         "aktif": True,
                     },
                 )

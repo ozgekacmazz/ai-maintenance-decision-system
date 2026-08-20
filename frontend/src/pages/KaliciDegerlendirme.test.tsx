@@ -1,15 +1,30 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { KaliciDegerlendirme } from './KaliciDegerlendirme'
 import * as bakimApi from '../api/bakim'
 import * as tahminApi from '../api/tahminler'
 import type { MakineOzet, SayfalanmisYanit, TahminKaydiDetay } from '../types/tahminler'
 import { ApiHatasi } from '../types/apiHata'
 
+const INPUT_DOMAIN = {
+  contract_version: 'ai4i-input-domain-1.0.0',
+  fields: {
+    hava_sicakligi_k: { canonical_unit: 'K', display_unit: '°C', supported_min: 290, supported_max: 310 },
+    proses_sicakligi_k: { canonical_unit: 'K', display_unit: '°C', supported_min: 300, supported_max: 320 },
+    donus_hizi_rpm: { canonical_unit: 'rpm', display_unit: 'rpm', supported_min: 1000, supported_max: 3200 },
+    tork_nm: { canonical_unit: 'N·m', display_unit: 'N·m', supported_min: 1, supported_max: 90 },
+    takim_asinmasi_dk: { canonical_unit: 'min', display_unit: 'dk', supported_min: 0, supported_max: 300 },
+  },
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
+})
+
+beforeEach(() => {
+  vi.spyOn(tahminApi, 'inputDomainContractGetir').mockResolvedValue(INPUT_DOMAIN)
 })
 
 const MOCK_MAKINELER: SayfalanmisYanit<MakineOzet> = {

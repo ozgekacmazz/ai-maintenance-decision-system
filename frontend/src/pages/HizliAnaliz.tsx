@@ -326,7 +326,7 @@ export function HizliAnaliz() {
                   type="button"
                   className="buton-sekonder"
                   style={{ width: '100%', marginTop: '16px' }}
-                  onClick={() => navigate('/app/tahminler/yeni')}
+                  onClick={() => navigate('/app/tahminler/yeni', { state: { sensorGirdisi: girdi } })}
                 >
                   <Plus size={16} />
                   <span>Kalıcı Değerlendirme Oluştur</span>

@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Activity, Save, ArrowLeft, Building2 } from 'lucide-react'
 import { makineleriGetir } from '../api/bakim'
-import { kaliciTahminKaydiOlustur } from '../api/tahminler'
-import type { MakineOzet, RiskTahminiGirdi } from '../types/tahminler'
+import { inputDomainContractGetir, kaliciTahminKaydiOlustur } from '../api/tahminler'
+import type { InputDomainContract, MakineOzet, RiskTahminiGirdi } from '../types/tahminler'
 import { ApiHatasi } from '../types/apiHata'
 import { ErrorState } from '../components/feedback/ErrorState'
 import { LoadingSkeleton } from '../components/feedback/LoadingSkeleton'
+import { celsiusToKelvin, kelvinToCelsius } from '../utils/temperature'
+
+interface KaliciDegerlendirmeState {
+  sensorGirdisi?: RiskTahminiGirdi
+}
 
 function UUIDUret(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -27,6 +32,9 @@ function SuAnkiDatetimeLocal(): string {
 
 export function KaliciDegerlendirme() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const routeGirdisi = (location.state as KaliciDegerlendirmeState | null)?.sensorGirdisi
+  const [domain, setDomain] = useState<InputDomainContract | null>(null)
 
   // Makine listesi yükleme durumları
   const [makineler, setMakineler] = useState<MakineOzet[]>([])
@@ -38,11 +46,11 @@ export function KaliciDegerlendirme() {
   const [olcumZamani, setOlcumZamani] = useState<string>(SuAnkiDatetimeLocal())
   const [girdi, setGirdi] = useState<RiskTahminiGirdi>({
     urun_tipi: 'M',
-    hava_sicakligi_k: 300.0,
-    proses_sicakligi_k: 310.0,
-    donus_hizi_rpm: 1500,
-    tork_nm: 40.0,
-    takim_asinmasi_dk: 108,
+    hava_sicakligi_k: routeGirdisi?.hava_sicakligi_k ?? 26.85,
+    proses_sicakligi_k: routeGirdisi?.proses_sicakligi_k ?? 36.85,
+    donus_hizi_rpm: routeGirdisi?.donus_hizi_rpm ?? 1500,
+    tork_nm: routeGirdisi?.tork_nm ?? 40.0,
+    takim_asinmasi_dk: routeGirdisi?.takim_asinmasi_dk ?? 108,
   })
 
   // Idempotency Key: logical request başladığında 1 kere üretilir
@@ -81,6 +89,7 @@ export function KaliciDegerlendirme() {
       }
     }
     void makineleriYukle()
+    void inputDomainContractGetir().then(setDomain).catch(() => setMakineHatasi('Sensör sınırları alınamadı.'))
   }, [])
 
   const alanDegistir = <K extends keyof RiskTahminiGirdi>(alan: K, deger: string) => {
@@ -123,7 +132,11 @@ export function KaliciDegerlendirme() {
         olcum_zamani: isoZaman,
         kaynak: 'MANUEL',
         idempotency_key: idempotencyKey,
-        sensor_verisi: girdi,
+        sensor_verisi: {
+          ...girdi,
+          hava_sicakligi_k: celsiusToKelvin(girdi.hava_sicakligi_k),
+          proses_sicakligi_k: celsiusToKelvin(girdi.proses_sicakligi_k),
+        },
       })
 
       if (kayitRes.tekrarlandi) {
@@ -258,20 +271,20 @@ export function KaliciDegerlendirme() {
 
               <div>
                 <label htmlFor="hava_sicakligi_k">
-                  Hava Sıcaklığı <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>(290.0 - 310.0 K)</span>
+                  Hava Sıcaklığı (°C) {domain && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({kelvinToCelsius(domain.fields.hava_sicakligi_k.supported_min).toFixed(1)} - {kelvinToCelsius(domain.fields.hava_sicakligi_k.supported_max).toFixed(1)} °C)</span>}
                 </label>
                 <div className="input-birimli">
                   <input
                     id="hava_sicakligi_k"
                     type="number"
-                    step="0.1"
-                    min="290"
-                    max="310"
+                    step="any"
+                    min={domain ? kelvinToCelsius(domain.fields.hava_sicakligi_k.supported_min) : undefined}
+                    max={domain ? kelvinToCelsius(domain.fields.hava_sicakligi_k.supported_max) : undefined}
                     value={girdi.hava_sicakligi_k}
                     onChange={(e) => alanDegistir('hava_sicakligi_k', e.target.value)}
                     disabled={gonderiliyor}
                   />
-                  <span className="input-birim">K</span>
+                  <span className="input-birim">°C</span>
                 </div>
                 {(alanHatalari.hava_sicakligi_k || alanHatalari['sensor_verisi.hava_sicakligi_k']) && (
                   <p className="alan-hatasi">{(alanHatalari.hava_sicakligi_k || alanHatalari['sensor_verisi.hava_sicakligi_k']).join(' ')}</p>
@@ -280,20 +293,20 @@ export function KaliciDegerlendirme() {
 
               <div>
                 <label htmlFor="proses_sicakligi_k">
-                  Proses Sıcaklığı <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>(300.0 - 320.0 K)</span>
+                  Proses Sıcaklığı (°C) {domain && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({kelvinToCelsius(domain.fields.proses_sicakligi_k.supported_min).toFixed(1)} - {kelvinToCelsius(domain.fields.proses_sicakligi_k.supported_max).toFixed(1)} °C)</span>}
                 </label>
                 <div className="input-birimli">
                   <input
                     id="proses_sicakligi_k"
                     type="number"
-                    step="0.1"
-                    min="300"
-                    max="320"
+                    step="any"
+                    min={domain ? kelvinToCelsius(domain.fields.proses_sicakligi_k.supported_min) : undefined}
+                    max={domain ? kelvinToCelsius(domain.fields.proses_sicakligi_k.supported_max) : undefined}
                     value={girdi.proses_sicakligi_k}
                     onChange={(e) => alanDegistir('proses_sicakligi_k', e.target.value)}
                     disabled={gonderiliyor}
                   />
-                  <span className="input-birim">K</span>
+                  <span className="input-birim">°C</span>
                 </div>
                 {(alanHatalari.proses_sicakligi_k || alanHatalari['sensor_verisi.proses_sicakligi_k']) && (
                   <p className="alan-hatasi">{(alanHatalari.proses_sicakligi_k || alanHatalari['sensor_verisi.proses_sicakligi_k']).join(' ')}</p>
@@ -309,8 +322,8 @@ export function KaliciDegerlendirme() {
                     id="donus_hizi_rpm"
                     type="number"
                     step="1"
-                    min="1000"
-                    max="3200"
+                    min={domain?.fields.donus_hizi_rpm.supported_min}
+                    max={domain?.fields.donus_hizi_rpm.supported_max}
                     value={girdi.donus_hizi_rpm}
                     onChange={(e) => alanDegistir('donus_hizi_rpm', e.target.value)}
                     disabled={gonderiliyor}
@@ -331,8 +344,8 @@ export function KaliciDegerlendirme() {
                     id="tork_nm"
                     type="number"
                     step="0.1"
-                    min="1"
-                    max="90"
+                    min={domain?.fields.tork_nm.supported_min}
+                    max={domain?.fields.tork_nm.supported_max}
                     value={girdi.tork_nm}
                     onChange={(e) => alanDegistir('tork_nm', e.target.value)}
                     disabled={gonderiliyor}
@@ -353,8 +366,8 @@ export function KaliciDegerlendirme() {
                     id="takim_asinmasi_dk"
                     type="number"
                     step="1"
-                    min="0"
-                    max="300"
+                    min={domain?.fields.takim_asinmasi_dk.supported_min}
+                    max={domain?.fields.takim_asinmasi_dk.supported_max}
                     value={girdi.takim_asinmasi_dk}
                     onChange={(e) => alanDegistir('takim_asinmasi_dk', e.target.value)}
                     disabled={gonderiliyor}

@@ -189,7 +189,15 @@ Validation `400`, auth `401`, permission `403`, bulunamayan kaynak `404`, confli
 - Gerçek ERP, MQTT/Kafka broker, background worker, bildirim, stok rezervasyonu ve satın alma entegrasyonu yoktur.
 - Replay gerçek zamanlı IoT akışı değil, kontrollü HTTP batch simülasyonudur.
 - Risk skoru kalibrasyon kanıtı olmayan model skorudur.
-- TWF deneysel/yetersiz destekli sinyaldir; production deployment ve Sprint 21 bu teslim kapsamında değildir.
+- TWF deneysel/yetersiz destekli sinyaldir; Sprint 21 production contract kapsamında da operasyonel karar kaynağı değildir.
+
+## Kaynak arşivi ve deployable/demo bundle
+
+GitHub'dan indirilen kaynak arşivi veya `git archive`, yalnız Git tarafından izlenen kaynakları içerir. `.gitignore` kapsamındaki model `.joblib` dosyaları, raw/prepared CSV ve yerel `.env` bu arşivde bulunmaz; bu nedenle kaynak arşivi tek başına inference/replay için çalıştırılabilir teslim paketi değildir.
+
+Deployable/demo bundle; kaynaklara ek olarak checksum'u metadata ile doğrulanmış iki model artifact'ini, gerekli metadata dosyalarını ve replay için prepared veri setini içerir. Raw AI4I verisi yeniden eğitim girdisidir ve final runtime bundle'a dahil edilmez. Bundle içindeki `ARTIFACT_CHECKSUMS.sha256` ve `FINAL_PACKAGE_CONTENTS.md` paket kapsamını tanımlar.
+
+Kurulumda `.env.example` dosyası `.env` olarak kopyalanır, placeholder'lar ortama özgü secret ve demo parolalarıyla değiştirilir; `.env` asla arşive veya Git'e eklenmez. İlk çalıştırma için yukarıdaki Compose komutlarından sonra migration ve `seed_demo` uygulanır. Model/veri dosyaları boyut, yeniden üretilebilirlik ve güvenli artifact yönetimi nedeniyle Git dışında tutulur; yeniden üretim komutları "Model ve veri artefaktları" bölümündedir.
 
 ## Aktif belgeler
 
