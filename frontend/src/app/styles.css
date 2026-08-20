@@ -8,13 +8,13 @@
 
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-muted: #475569;
   --text-on-primary: #ffffff;
 
   --brand-primary: #2563eb;
   --brand-primary-hover: #1d4ed8;
   --brand-primary-light: #eff6ff;
-  --brand-teal: #0d9488;
+  --brand-teal: #0f766e;
   --brand-teal-light: #f0fdfa;
   --brand-indigo: #4f46e5;
   --brand-indigo-light: #e0e7ff;
@@ -53,6 +53,40 @@
   --sidebar-width: 270px;
   --header-height: 70px;
   --transition-speed: 0.2s ease-in-out;
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 2000;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 0 0 3px #2563eb;
+  transform: translateY(-160%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
 }
 
 * {

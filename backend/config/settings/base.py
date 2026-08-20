@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
     "apps.core",
     "apps.kullanicilar",
@@ -84,6 +85,12 @@ REPLAY_PREPARED_DATASET_PATH = Path(
 REPLAY_PREPARED_METADATA_PATH = Path(
     os.getenv(
         "REPLAY_PREPARED_METADATA_PATH", "/data/metadata/failure_label_analysis.json"
+    )
+)
+INPUT_DOMAIN_CONTRACT_PATH = Path(
+    os.getenv(
+        "INPUT_DOMAIN_CONTRACT_PATH",
+        REPO_ROOT / "data" / "metadata" / "input_domain_contract.json",
     )
 )
 
@@ -151,7 +158,28 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_THROTTLE_RATES": {"login": os.getenv("LOGIN_THROTTLE_RATE", "10/min")},
     "EXCEPTION_HANDLER": "apps.core.exception_handler.standart_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Bakım Karar Sistemi API",
+    "DESCRIPTION": "Sensör tahmini, bakım kararı, iş emri ve replay API sözleşmesi.",
+    "VERSION": "21.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "DEFAULT_GENERATOR_CLASS": "apps.core.openapi.ProjectSchemaGenerator",
+    "SECURITY": [{"jwtAuth": []}],
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "jwtAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    },
+}
+ENABLE_API_DOCS = env_bool("ENABLE_API_DOCS", True)
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(

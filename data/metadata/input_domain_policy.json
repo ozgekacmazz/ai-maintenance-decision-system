@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "contract_version": "ai4i-input-domain-1.0.0",
+  "dataset_id": "ai4i2020_prepared",
+  "source_scope": "train_split",
+  "policy": "legacy-ood-boundaries-1.0.0",
+  "features": {
+    "urun_tipi": {"api_field": "urun_tipi", "unit": "category", "dtype": "string", "required": true, "allowed": ["H", "L", "M"]},
+    "hava_sicakligi_k": {"api_field": "hava_sicakligi_k", "unit": "K", "display_unit": "°C", "dtype": "float", "required": true, "physical_min": 250.0, "physical_max": 350.0, "supported_min": 290.0, "supported_max": 310.0},
+    "proses_sicakligi_k": {"api_field": "proses_sicakligi_k", "unit": "K", "display_unit": "°C", "dtype": "float", "required": true, "physical_min": 260.0, "physical_max": 360.0, "supported_min": 300.0, "supported_max": 320.0},
+    "donus_hizi_rpm": {"api_field": "donus_hizi_rpm", "unit": "rpm", "display_unit": "rpm", "dtype": "float", "required": true, "physical_min": 0.0, "physical_max": 10000.0, "supported_min": 1000.0, "supported_max": 3200.0},
+    "tork_nm": {"api_field": "tork_nm", "unit": "N·m", "display_unit": "N·m", "dtype": "float", "required": true, "physical_min": 0.0, "physical_max": 500.0, "supported_min": 1.0, "supported_max": 90.0},
+    "takim_asinmasi_dk": {"api_field": "takim_asinmasi_dk", "unit": "min", "display_unit": "dk", "dtype": "float", "required": true, "physical_min": 0.0, "physical_max": 1000.0, "supported_min": 0.0, "supported_max": 300.0},
+    "proses_hava_sicaklik_farki_k": {"api_field": null, "unit": "K", "dtype": "float", "required": false, "supported_min": 5.0, "supported_max": 15.0},
+    "acisal_hiz_rad_s": {"api_field": null, "unit": "rad/s", "dtype": "float", "required": false},
+    "mekanik_guc_w": {"api_field": null, "unit": "W", "dtype": "float", "required": false, "supported_min": 500.0, "supported_max": 15000.0}
+  }
+}

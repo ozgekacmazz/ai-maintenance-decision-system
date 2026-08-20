@@ -54,7 +54,7 @@ support azdır ve belirsizlik geniştir.
 - Bütün validation/test support'ları küçüktür; TWF özellikle kararsızdır.
 - AI4I sentetiktir; gerçek saha, temporal veya ekipmanlar arası genelleme kanıtı yoktur.
 - Threshold'lar az sayıda validation pozitifi üzerinde seçilmiştir.
-- Binary risk modeliyle uçtan uca gating henüz değerlendirilmemiştir.
+- Runtime binary risk eşiğiyle uçtan uca gating uygular; bu entegrasyon ayrı servis/API testleriyle doğrulanır, model kartındaki çevrimdışı metriklerin kapsamını genişletmez.
 - Drift izleme, dış doğrulama ve otomatik yeniden eğitim yoktur.
 
 Saha kullanımından önce temsili gerçek veri, prospektif doğrulama, drift

@@ -98,12 +98,14 @@ export function Login() {
               <input
                 id="username"
                 autoComplete="username"
+                aria-invalid={Boolean(alanHatalari.username)}
+                aria-describedby={alanHatalari.username ? 'username-error' : undefined}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Kullanıcı adınızı girin"
               />
               {Boolean(alanHatalari.username) && (
-                <p className="alan-hatasi">Kullanıcı adını kontrol edin.</p>
+                <p id="username-error" className="alan-hatasi">Kullanıcı adını kontrol edin.</p>
               )}
             </div>
 
@@ -114,6 +116,8 @@ export function Login() {
                   id="password"
                   type={gorunur ? 'text' : 'password'}
                   autoComplete="current-password"
+                  aria-invalid={Boolean(alanHatalari.password)}
+                  aria-describedby={alanHatalari.password ? 'password-error' : undefined}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Parolanızı girin"
@@ -128,7 +132,7 @@ export function Login() {
                 </button>
               </div>
               {Boolean(alanHatalari.password) && (
-                <p className="alan-hatasi">Parolayı kontrol edin.</p>
+                <p id="password-error" className="alan-hatasi">Parolayı kontrol edin.</p>
               )}
             </div>
 

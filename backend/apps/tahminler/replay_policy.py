@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+from sklearn.metrics import average_precision_score
+
 REPLAY_POLICY_VERSION = "sensor-replay-1.0.0"
 DEFAULT_BATCH_SIZE = 5
 MAX_BATCH_SIZE = 25
@@ -64,20 +66,62 @@ def _label_metrics(truth, predicted):
     }
 
 
-def replay_metrics(records):
+def _unavailable_metrics(warnings):
+    return {
+        "degerlendirilen_oge_sayisi": 0,
+        "binary": None,
+        "failure_types": {},
+        "rnf_ground_truth_count": 0,
+        "metrik_uyarilari": warnings,
+    }
+
+
+def replay_metrics(records, *, tamamlandi=True):
     data = deepcopy(records)
+    if not tamamlandi:
+        return _unavailable_metrics(
+            ["Replay tamamlanmadan nihai model metrikleri hesaplanmaz."]
+        )
     if not data:
-        return {
-            "evaluated_count": 0,
-            "binary": None,
-            "failure_types": {},
-            "rnf_ground_truth_count": 0,
-        }
+        return _unavailable_metrics(
+            ["Değerlendirilebilir başarılı replay öğesi bulunamadı."]
+        )
+
+    truth = [bool(x["truth"]["makine_arizasi"]) for x in data]
+    predicted = [
+        (
+            float(x["risk_orani"]) >= float(x["binary_threshold"])
+            if x.get("risk_orani") is not None
+            else bool(x.get("risk_uyarisi", False))
+        )
+        for x in data
+    ]
     binary = _label_metrics(
-        [bool(x["truth"]["makine_arizasi"]) for x in data],
-        [bool(x["risk_uyarisi"]) for x in data],
+        truth,
+        predicted,
     )
-    binary["accuracy"] = round((binary["tp"] + binary["tn"]) / len(data), 6)
+    binary["confusion_matrix"] = {
+        "true_negative": binary.pop("tn"),
+        "false_positive": binary.pop("fp"),
+        "false_negative": binary.pop("fn"),
+        "true_positive": binary.pop("tp"),
+    }
+    warnings = []
+    scores = [x.get("risk_orani") for x in data]
+    if any(score is None or not 0 <= float(score) <= 1 for score in scores):
+        binary["pr_auc"] = None
+        warnings.append(
+            "PR-AUC hesaplanamadı: bütün öğelerde 0–1 aralığında risk skoru gereklidir."
+        )
+    elif not any(truth):
+        binary["pr_auc"] = None
+        warnings.append(
+            "PR-AUC hesaplanamadı: replay içinde gerçek pozitif arıza örneği yok."
+        )
+    else:
+        binary["pr_auc"] = round(
+            float(average_precision_score(truth, [float(x) for x in scores])), 6
+        )
     labels = {}
     for label in ("HDF", "PWF", "OSF", "TWF"):
         labels[label] = _label_metrics(
@@ -86,8 +130,9 @@ def replay_metrics(records):
         )
         labels[label]["politika"] = "DENEYSEL" if label == "TWF" else "GUVENILIR_ADAY"
     return {
-        "evaluated_count": len(data),
+        "degerlendirilen_oge_sayisi": len(data),
         "binary": binary,
         "failure_types": labels,
         "rnf_ground_truth_count": sum(bool(x["truth"]["RNF"]) for x in data),
+        "metrik_uyarilari": warnings,
     }

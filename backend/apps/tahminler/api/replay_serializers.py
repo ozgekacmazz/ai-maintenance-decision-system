@@ -64,6 +64,8 @@ class AdimSerializer(VersionSerializer):
 
 
 class ReplayFiltreSerializer(StrictSerializer):
+    sayfa = serializers.IntegerField(required=False, min_value=1)
+    sayfa_boyutu = serializers.IntegerField(required=False, min_value=1, max_value=100)
     durum = serializers.ChoiceField(required=False, choices=ReplayOturumu.Durum.choices)
     olusturan_id = serializers.IntegerField(required=False, min_value=1)
     split = serializers.ChoiceField(
@@ -91,6 +93,8 @@ class ReplayFiltreSerializer(StrictSerializer):
 
 
 class ReplayOgeFiltreSerializer(StrictSerializer):
+    sayfa = serializers.IntegerField(required=False, min_value=1)
+    sayfa_boyutu = serializers.IntegerField(required=False, min_value=1, max_value=100)
     durum = serializers.ChoiceField(required=False, choices=ReplayOgesi.Durum.choices)
     external_machine_id = serializers.CharField(required=False, max_length=50)
     ground_truth_binary = QueryBoolean(required=False)
@@ -154,6 +158,8 @@ class ReplayDetaySerializer(ReplayOturumuSerializer):
         exclude = ("aktif_claim_token",)
 
     def get_metrikler(self, obj):
+        if obj.durum != ReplayOturumu.Durum.TAMAMLANDI:
+            return replay_metrics([], tamamlandi=False)
         records = []
         for item in obj.ogeler.all():
             if item.durum != "BASARILI" or not item.tahmin_kaydi_id:
@@ -171,6 +177,8 @@ class ReplayDetaySerializer(ReplayOturumuSerializer):
             records.append(
                 {
                     "truth": item.ground_truth_snapshot,
+                    "risk_orani": item.tahmin_kaydi.risk_orani,
+                    "binary_threshold": item.tahmin_kaydi.binary_threshold,
                     "risk_uyarisi": item.tahmin_kaydi.risk_uyarisi,
                     "predicted_labels": predicted,
                 }

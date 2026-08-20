@@ -30,6 +30,8 @@ const MOCK_LIST_RESPONSE: SayfalanmisYanit<TahminKaydiOzet> = {
       erp_snapshot_var: true,
       nihai_oncelik_skoru: 88,
       oncelik_seviyesi: 'KRITIK',
+      genel_oncelik: null,
+      genel_oncelik_formul_surumu: null,
       ana_aksiyon: 'ACIL_TEKNIK_DEGERLENDIRME',
       karar_guveni: 'YUKSEK',
     },

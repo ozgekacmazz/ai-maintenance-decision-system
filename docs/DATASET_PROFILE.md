@@ -1,5 +1,7 @@
 # AI4I 2020 veri profili
 
+> Bu belge veri hazırlama aşamasının tarihsel profilidir; güncel model ve runtime davranışı için README ile model kartlarına bakın.
+
 ## Kaynak ve lisans
 
 Veri, UCI Machine Learning Repository'deki **AI4I 2020 Predictive Maintenance Dataset** (dataset ID 601, DOI `10.24432/C5HS5C`) resmi arşivinden 18 Ağustos 2026 tarihinde edinildi. UCI API kaydı son güncellemeyi 14 Şubat 2024 olarak, kaynak sayfa ise **CC BY 4.0** lisansını bildirir. Yerel ham dosya `data/raw/ai4i2020.csv` olup Git dışındadır.

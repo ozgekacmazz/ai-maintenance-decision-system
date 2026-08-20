@@ -36,6 +36,9 @@ def hata_sozlesmesi(response, durum):
 
 def test_anonim_401_user_yazma_403_ve_staff_rol_atlamaz(user):
     hata_sozlesmesi(istemci().get("/api/makineler/"), 401)
+    hata_sozlesmesi(istemci().get("/api/makine-secenekleri/"), 401)
+    hata_sozlesmesi(istemci().get("/api/stoklar/"), 401)
+    hata_sozlesmesi(istemci().get("/api/bakim/is-emirleri/"), 401)
     hata_sozlesmesi(istemci(user).post("/api/makineler/", {}), 403)
     user.is_staff = True
     user.save()
@@ -79,7 +82,8 @@ def test_makine_crud_gorunurluk_filtre_sayfalama_ve_cakisma(admin, user):
         ).status_code
         == 200
     )
-    hata_sozlesmesi(istemci(user).get(f"/api/makineler/{pk}/"), 404)
+    hata_sozlesmesi(istemci(user).get("/api/makineler/"), 403)
+    hata_sozlesmesi(istemci(user).get(f"/api/makineler/{pk}/"), 403)
     assert client.get(f"/api/makineler/{pk}/").status_code == 200
 
 
@@ -136,10 +140,9 @@ def test_parca_stok_crud_kurallar_ve_cakismalar(admin, user):
     )
     response = client.get("/api/ariza-parca-kurallari/?arama=Kontrol&ariza_tipi=TWF")
     assert response.data["count"] == 1, response.data
-    assert (
-        istemci(user).get("/api/parcalar/").data["results"][0]["stok"]["stok_adedi"]
-        == 8
-    )
+    hata_sozlesmesi(istemci(user).get("/api/parcalar/"), 403)
+    hata_sozlesmesi(istemci(user).get("/api/stoklar/"), 403)
+    hata_sozlesmesi(istemci(user).get("/api/ariza-parca-kurallari/"), 403)
 
 
 def test_pasif_parca_stok_ve_aktif_kural_icin_reddedilir(admin):
@@ -180,14 +183,42 @@ def test_genel_kural_cakismasi_409(admin):
     )
 
 
-def test_user_yalniz_aktif_kayitlari_gorur_admin_hepsini_gorur(admin, user):
+def test_user_minimum_makine_seceneklerini_admin_crud_detayi_olmadan_gorur(admin, user):
     Makine.objects.create(makine_kodu="A", ad="Aktif", tip="T", kritiklik=1)
     Makine.objects.create(
         makine_kodu="P", ad="Pasif", tip="T", kritiklik=1, aktif=False
     )
-    response = istemci(user).get("/api/makineler/")
+    response = istemci(user).get("/api/makine-secenekleri/")
     assert response.data["count"] == 1, response.data
+    assert set(response.data["results"][0]) == {"id", "kod", "ad", "aktif"}
+    assert "kritiklik" not in response.data["results"][0]
+    assert "tip" not in response.data["results"][0]
+    hata_sozlesmesi(istemci(user).get("/api/makineler/"), 403)
     assert istemci(admin).get("/api/makineler/").data["count"] == 2
+
+
+@pytest.mark.parametrize(
+    ("method", "url"),
+    (
+        ("get", "/api/makineler/"),
+        ("post", "/api/makineler/"),
+        ("get", "/api/parcalar/"),
+        ("post", "/api/parcalar/"),
+        ("get", "/api/stoklar/"),
+        ("post", "/api/stoklar/"),
+        ("get", "/api/ariza-parca-kurallari/"),
+        ("post", "/api/ariza-parca-kurallari/"),
+    ),
+)
+def test_user_yonetim_endpointlerine_erisim_saglayamaz(user, method, url):
+    response = getattr(istemci(user), method)(url, {}, format="json")
+    hata_sozlesmesi(response, 403)
+
+
+def test_pasif_user_makine_lookup_erisimine_sahip_degil(user):
+    user.is_active = False
+    user.save(update_fields=["is_active"])
+    hata_sozlesmesi(istemci(user).get("/api/makine-secenekleri/"), 403)
 
 
 def test_selectorlar_iliskileri_n_plus_one_olmadan_yukler(

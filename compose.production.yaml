@@ -1,0 +1,141 @@
+name: sensor21production
+
+x-backend-environment: &backend-environment
+  DJANGO_SETTINGS_MODULE: config.settings.production
+  DJANGO_DEBUG: "False"
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?required}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?required}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?required}
+  PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?required}
+  ENABLE_API_DOCS: ${ENABLE_API_DOCS:-False}
+  POSTGRES_DB: ${POSTGRES_DB:?required}
+  POSTGRES_USER: ${POSTGRES_USER:?required}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+  POSTGRES_HOST: db
+  POSTGRES_PORT: "5432"
+  POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-prefer}
+  DJANGO_TRUST_PROXY_SSL_HEADER: ${DJANGO_TRUST_PROXY_SSL_HEADER:-False}
+  DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-False}
+  DJANGO_SESSION_COOKIE_SECURE: ${DJANGO_SESSION_COOKIE_SECURE:-False}
+  DJANGO_CSRF_COOKIE_SECURE: ${DJANGO_CSRF_COOKIE_SECURE:-False}
+  DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-0}
+  DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:-False}
+  DJANGO_SECURE_HSTS_PRELOAD: ${DJANGO_SECURE_HSTS_PRELOAD:-False}
+  JWT_REFRESH_COOKIE_SECURE: ${JWT_REFRESH_COOKIE_SECURE:-False}
+  MODEL_ARTIFACT_PATH: /models/binary-failure-1.0.0.joblib
+  MODEL_METADATA_PATH: /data/metadata/binary_failure_model.json
+  FAILURE_TYPE_MODEL_ARTIFACT_PATH: /models/failure-type-1.0.0.joblib
+  FAILURE_TYPE_MODEL_METADATA_PATH: /data/metadata/failure_type_model.json
+  INPUT_DOMAIN_CONTRACT_PATH: /data/metadata/input_domain_contract.json
+  REPLAY_PREPARED_DATASET_PATH: /data/processed/ai4i2020_prepared.csv
+  REPLAY_PREPARED_METADATA_PATH: /data/metadata/failure_label_analysis.json
+
+x-backend-base: &backend-base
+  image: sensor21-backend:21c
+  build:
+    context: .
+    dockerfile: backend/Dockerfile.production
+  environment: *backend-environment
+  networks: [internal]
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=256m"]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  init: true
+  volumes:
+    - ./ml/artifacts:/models:ro
+    - ./data/metadata:/data/metadata:ro
+    - ./data/processed:/data/processed:ro
+
+services:
+  db:
+    image: postgres:17.7-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?required}
+      POSTGRES_USER: ${POSTGRES_USER:?required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    networks: [internal]
+    volumes: [production_db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+
+  migrate:
+    <<: *backend-base
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    restart: "no"
+    depends_on:
+      db: {condition: service_healthy}
+
+  backend:
+    <<: *backend-base
+    command:
+      - gunicorn
+      - config.wsgi:application
+      - --bind=0.0.0.0:8000
+      - --workers=${GUNICORN_WORKERS:-2}
+      - --timeout=${GUNICORN_TIMEOUT:-120}
+      - --graceful-timeout=${GUNICORN_GRACEFUL_TIMEOUT:-30}
+      - --access-logfile=-
+      - --error-logfile=-
+    expose: ["8000"]
+    depends_on:
+      db: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; request = urllib.request.Request('http://127.0.0.1:8000/api/saglik/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(request, timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  proxy:
+    image: sensor21-proxy:21c
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.production
+      args: {VITE_API_BASE_URL: ""}
+    ports: ["${PROXY_PORT:-18080}:8080"]
+    networks: [edge, internal]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,uid=101,gid=101
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    init: true
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/proxy-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  seed-demo:
+    <<: *backend-base
+    profiles: [demo]
+    environment:
+      <<: *backend-environment
+      ALLOW_DEMO_SEED_IN_PRODUCTION: "True"
+      DEMO_ADMIN_USERNAME: ${DEMO_ADMIN_USERNAME:-}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
+      DEMO_USER_USERNAME: ${DEMO_USER_USERNAME:-}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
+    command: ["python", "manage.py", "seed_demo"]
+    restart: "no"
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+networks:
+  edge:
+  internal:
+    internal: true
+
+volumes:
+  production_db:

@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: sensor_e2e
+      POSTGRES_USER: sensor_e2e
+      POSTGRES_PASSWORD: ${E2E_POSTGRES_PASSWORD:?required}
+    volumes: [e2e_postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sensor_e2e -d sensor_e2e"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: ${E2E_DJANGO_SECRET_KEY:?required}
+      POSTGRES_DB: sensor_e2e
+      POSTGRES_USER: sensor_e2e
+      POSTGRES_PASSWORD: ${E2E_POSTGRES_PASSWORD:?required}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
+      CORS_ALLOWED_ORIGINS: http://127.0.0.1:15173
+      CSRF_TRUSTED_ORIGINS: http://127.0.0.1:15173
+      JWT_REFRESH_COOKIE_SECURE: "False"
+      DEMO_ADMIN_USERNAME: ${E2E_DEMO_ADMIN_USERNAME:-e2e_admin}
+      DEMO_ADMIN_PASSWORD: ${E2E_DEMO_ADMIN_PASSWORD:?required}
+      DEMO_USER_USERNAME: ${E2E_DEMO_USER_USERNAME:-e2e_operator}
+      DEMO_USER_PASSWORD: ${E2E_DEMO_USER_PASSWORD:?required}
+      MODEL_ARTIFACT_PATH: /opt/ml/artifacts/binary-failure-1.0.0.joblib
+      MODEL_METADATA_PATH: /data/metadata/binary_failure_model.json
+      FAILURE_TYPE_MODEL_ARTIFACT_PATH: /opt/ml/artifacts/failure-type-1.0.0.joblib
+      FAILURE_TYPE_MODEL_METADATA_PATH: /data/metadata/failure_type_model.json
+    command: sh -c "python manage.py reset_e2e && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+      - ./ml:/opt/ml:ro
+      - ./data/metadata:/data/metadata:ro
+      - ./data/processed:/data/processed:ro
+    ports: ["18000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/saglik/', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_BASE_URL: http://127.0.0.1:18000
+    volumes:
+      - ./frontend:/app
+      - e2e_node_modules:/app/node_modules
+    ports: ["15173:5173"]
+    depends_on:
+      backend: {condition: service_healthy}
+volumes:
+  e2e_postgres_data:
+  e2e_node_modules:

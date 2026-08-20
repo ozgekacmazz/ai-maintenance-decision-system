@@ -13,6 +13,7 @@ from apps.bakim.api.serializers import (
     KuralYazmaSerializer,
     MakineFiltre,
     MakineOkumaSerializer,
+    MakineSecenegiSerializer,
     MakineYazmaSerializer,
     ParcaFiltre,
     ParcaOkumaSerializer,
@@ -31,6 +32,7 @@ from apps.bakim.api.work_order_serializers import (
     IsEmriOncelikOverrideSerializer,
 )
 from apps.bakim.permissions import BakimApiIzni
+from apps.kullanicilar.api.permissions import UrunAdminiMi
 from apps.kullanicilar.models import Kullanici
 
 
@@ -124,14 +126,28 @@ class IsEmriOncelikOverride(IsEmriView):
             actor=request.user,
             trace_id=request.trace_id,
             expected_version=data["beklenen_version"],
-            priority=data["etkin_oncelik_seviyesi"],
+            priority=data.get("etkin_oncelik_seviyesi"),
+            general_priority=data.get("genel_oncelik"),
             reason=data["override_nedeni"],
         )
         return Response(IsEmriDetaySerializer(self.detail(pk)).data)
 
 
-class BakimView(APIView):
+class MakineSecenekleri(APIView):
     permission_classes = (IsAuthenticated, BakimApiIzni)
+
+    def get(self, request):
+        paginator = BakimSayfalama()
+        page = paginator.paginate_queryset(
+            selectors.makine_secenekleri(), request, self
+        )
+        return paginator.get_paginated_response(
+            MakineSecenegiSerializer(page, many=True).data
+        )
+
+
+class BakimView(APIView):
+    permission_classes = (IsAuthenticated, UrunAdminiMi)
 
     def filtrele(self, request, serializer_class):
         serializer = serializer_class(data=dict(request.query_params.items()))

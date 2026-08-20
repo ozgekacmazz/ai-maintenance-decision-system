@@ -29,6 +29,8 @@ const MOCK_KAYIT: TahminKaydiOzet = {
   erp_snapshot_var: false,
   nihai_oncelik_skoru: 85.0,
   oncelik_seviyesi: 'YUKSEK',
+  genel_oncelik: 4,
+  genel_oncelik_formul_surumu: 'general-priority-1.0.0',
   ana_aksiyon: 'ONCELIKLI_BAKIM_PLANLA',
   karar_guveni: 'YUKSEK',
 }
@@ -66,7 +68,7 @@ describe('Dashboard', () => {
 
   it('başarılı kayıtlarda gerçek count ve kart verilerini gösterir', async () => {
     vi.spyOn(tahminApi, 'tahminKayitlariniGetir').mockImplementation(async (params) => {
-      if (params?.risk_uyarisi && params?.sirala === '-nihai_oncelik') {
+      if (params?.risk_uyarisi && params?.sirala === '-genel_oncelik') {
         return { count: 5, next: null, previous: null, results: [MOCK_KAYIT] }
       }
       if (params?.risk_uyarisi) {
@@ -93,7 +95,7 @@ describe('Dashboard', () => {
     expect(screen.getByText('CNC Torna 1')).toBeInTheDocument()
     expect(screen.getByText('KOD: M101')).toBeInTheDocument()
     expect(screen.getByText('%78')).toBeInTheDocument()
-    expect(screen.getByText('Yüksek')).toBeInTheDocument()
+    expect(screen.getByText('Öncelik 4/5')).toBeInTheDocument()
     expect(screen.getByText('Güç kaynaklı sorun')).toBeInTheDocument()
     expect(screen.getByText('Öncelikli bakım planla')).toBeInTheDocument()
   })
@@ -115,7 +117,7 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(apiMock).toHaveBeenCalledWith({
         risk_uyarisi: true,
-        sirala: '-nihai_oncelik',
+        sirala: '-genel_oncelik',
         sayfa_boyutu: 10,
       })
     })

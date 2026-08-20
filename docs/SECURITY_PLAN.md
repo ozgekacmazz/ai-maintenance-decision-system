@@ -2,7 +2,7 @@
 
 ## 1. Durum
 
-Bu belge Sprint 0 güvenlik kararlarını tanımlar. Kontroller henüz uygulanmamıştır.
+Bu belge çalışan sistemin uygulanan güvenlik kontrollerini ve production sınırlarını tanımlar.
 
 ## 2. Kimlik doğrulama
 
@@ -63,6 +63,9 @@ Onay ve ret işlemlerinde tahmin, karar türü, karar veren kullanıcı kimliği
   bu servisle pasifleştiremez.
 - Development/demo `seed_admin` parolayı yalnız environment'tan alır, çıktıya
   yazmaz ve tekrar çalıştırmada varsayılan olarak değiştirmez.
+- `seed_demo` giriş hesaplarını `DEMO_ADMIN_*` ve `DEMO_USER_*` environment
+  değişkenlerinden alır; Django validator'larını uygular ve raw parolayı yazdırmaz.
+  `DEBUG=False` ortamında `ALLOW_DEMO_SEED_IN_PRODUCTION=True` açık opt-in gerekir.
 - Ayrıntılı kararlar [rol ve yetki matrisinde](ROLE_PERMISSION_MATRIX.md) bulunur.
 
 ## 9. Sprint 4 authentication kontrolleri

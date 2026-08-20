@@ -24,6 +24,10 @@ class TraceIdMiddleware:
         response = self.get_response(request)
         if request.path.startswith("/api/") and response.status_code >= 400:
             response = self._gerekirse_standartlastir(response, request.trace_id)
+        if request.path.startswith("/api/"):
+            if "no-store" not in response.get("Cache-Control", ""):
+                response["Cache-Control"] = "no-store"
+            response["Pragma"] = "no-cache"
         response["X-Trace-ID"] = request.trace_id
 
         logger.info(

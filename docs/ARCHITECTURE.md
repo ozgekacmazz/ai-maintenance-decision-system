@@ -2,7 +2,7 @@
 
 ## 1. Durum
 
-Bu belge Sprint 0 mimari kararlarını tanımlar. Bileşenler henüz kurulmamış veya geliştirilmemiştir.
+Bu belge çalışan sistemin güncel mimarisini tanımlar. Tarihsel karar gerekçeleri `docs/decisions/` altındaki ADR'lerde korunur.
 
 ## 2. Teknoloji kararı
 
@@ -39,16 +39,15 @@ Demo verisini satır satır API'ye gönderir. Sentetik `machine_id` ve `timestam
 
 ## 4. Ana işlem akışı
 
-1. Sensör verisi API'ye gelir veya replay tarafından gönderilir.
-2. Veri kalite kapısı eksik, tekrarlı ve fiziksel olarak geçersiz değerleri denetler.
-3. Model artefaktı yüklenir ve tahmin üretilir.
-4. Eşik üzerindeki tahmin risk uyarısı olarak kaydedilir.
-5. Mutlak SHAP etkisine göre ilk üç faktör belirlenir.
-6. Genel öncelik risk, makine kritikliği ve stok katsayısıyla hesaplanıp 1–5 tam sayıya dönüştürülür.
-7. Bakım ve tedarik alt skorları genel önceliği açıklar.
-8. Kullanıcı taslağı onaylar veya reddeder.
-9. Onay ve ret kullanıcı kimliği ve zamanıyla kaydedilir.
-10. Yalnız onaydan sonra iş emri oluşturulur.
+1. Sensör verisi API'ye Kelvin birimiyle gelir veya replay snapshot'ından alınır; web Hızlı Analiz Celsius'u Kelvin'e dönüştürür.
+2. Sürümlü input-domain contract fiziksel ve supported sınırları doğrular.
+3. Binary model risk skorunu üretir; eşik aşılırsa multi-label fiziksel modeller çalışır.
+4. SHAP binary ve çalıştırılan fiziksel modellerin pozitif sınıf çıktısını açıklar.
+5. `TahminKaydi`, model sonucu ve immutable failure/SHAP/ERP snapshot'ları yazılır.
+6. Legacy açıklama skorları ile canonical 1–5 genel öncelik ayrı alanlarda hesaplanır.
+7. Kullanıcı tahmini onaylar veya reddeder; karar aktör ve zamanla kaydedilir.
+8. Yalnız onaydan sonra iş emri, kaynak/etkin öncelik ve canonical SLA oluşur.
+9. ADMIN override yalnız etkin öncelik/deadline'ı değiştirir ve immutable audit olayı üretir.
 
 ## 5. Veri modelinin asgari kavramları
 
@@ -141,3 +140,7 @@ immutable olay üretir. Ayrıntılar [iş emri yaşam döngüsündedir](WORK_ORD
 Replay, tahmin domaininde oturum/öğe/immutable olay olarak modellenir. Dataset yalnız
 oturum kurulurken okunur; claim transaction'ı ile uzun inference birbirinden ayrılır.
 Ayrıntılar [sensör replay belgesindedir](SENSOR_REPLAY.md).
+
+## Öncelik karar zinciri
+
+Sensör tahmini canonical formülü çalıştırır ve immutable bakım kararı snapshot'ına 1–5 genel öncelik ile formül girdilerini yazar. İş emri bu snapshot'ın kaynak değerlerini kopyalar, etkin önceliği başlatır ve sürümlü SLA politikasından deadline üretir. Admin override kilitli iş emri satırında yalnız etkin önceliği ve deadline'ı değiştirir; immutable olay snapshot'ı önceki/yeni değeri kaydeder. Legacy snapshot ve emirler nullable canonical sınırında tutulur ve otomatik backfill edilmez.

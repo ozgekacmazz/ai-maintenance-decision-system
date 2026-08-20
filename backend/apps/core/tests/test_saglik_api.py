@@ -15,6 +15,8 @@ def test_saglik_basarili():
         "durum": "hazir",
         "servis": "backend",
         "veritabani": "bagli",
+        "migrationlar": "uygun",
+        "model_dosyalari": "hazir",
     }
 
 

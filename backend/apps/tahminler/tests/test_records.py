@@ -1,3 +1,4 @@
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -23,6 +24,7 @@ from apps.tahminler.models import (
     KararGerekcesiSnapshot,
     ShapEtkisiSnapshot,
     TahminKaydi,
+    TahminReddi,
 )
 from apps.tahminler.record_services import payload_fingerprint
 from apps.tahminler.services import _ozellikleri_hazirla
@@ -683,6 +685,165 @@ def test_legacy_record_without_decision_serializes_safe_null(client, user, machi
     assert response.data["bakim_karari"] is None
 
 
+def test_detail_returns_null_work_order_summary_when_order_does_not_exist(
+    client, user, machine
+):
+    record = TahminKaydi.objects.create(**record_values(user, machine))
+
+    response = client.get(f"{URL}{record.pk}/")
+
+    assert response.status_code == 200
+    assert response.data["is_emri_bilgisi"] is None
+
+
+def test_detail_returns_safe_work_order_summary(client, user, machine):
+    with patch(
+        "apps.tahminler.record_services.hiyerarsik_risk_tahmini_yap",
+        return_value=result(),
+    ):
+        created = client.post(URL, payload(machine), format="json")
+    order = client.post(
+        "/api/bakim/is-emirleri/",
+        {
+            "tahmin_kaydi_id": created.data["id"],
+            "idempotency_key": "detail-summary-order",
+            "baslik": "Bakim karari onayi",
+            "aciklama": "Saha ekibine iletildi.",
+        },
+        format="json",
+    )
+    assert order.status_code == 201
+
+    response = client.get(f"{URL}{created.data['id']}/")
+
+    assert response.status_code == 200
+    summary = response.data["is_emri_bilgisi"]
+    assert summary == {
+        "id": order.data["id"],
+        "is_emri_numarasi": order.data["is_emri_numarasi"],
+        "durum": "ACIK",
+        "olusturan": user.username,
+        "olusturulma_zamani": order.data["olusturulma_zamani"],
+    }
+    assert set(summary) == {
+        "id",
+        "is_emri_numarasi",
+        "durum",
+        "olusturan",
+        "olusturulma_zamani",
+    }
+
+
+def test_reject_prediction_returns_detail_and_standard_duplicate_error(
+    client, user, machine
+):
+    record = TahminKaydi.objects.create(**record_values(user, machine))
+    url = f"{URL}{record.pk}/reddet/"
+
+    response = client.post(
+        url,
+        {"red_nedeni": "Yanlis alarm"},
+        format="json",
+        HTTP_X_TRACE_ID="reject-trace",
+    )
+
+    assert response.status_code == 201
+    assert response.data["id"] == str(record.pk)
+    assert response.data["red_bilgisi"]["reddeden"] == user.username
+    assert response.data["red_bilgisi"]["red_nedeni"] == "Yanlis alarm"
+
+    duplicate = client.post(url, {}, format="json", HTTP_X_TRACE_ID="reject-trace")
+    assert duplicate.status_code == 409
+    assert duplicate.data["hata"] == {
+        "kod": "TAHMIN_ZATEN_REDDEDILMIS",
+        "mesaj": "Tahmin zaten reddedilmiş.",
+        "alanlar": {},
+        "trace_id": "reject-trace",
+    }
+
+
+def test_reject_prediction_with_work_order_returns_standard_conflict(
+    client, user, machine
+):
+    with patch(
+        "apps.tahminler.record_services.hiyerarsik_risk_tahmini_yap",
+        return_value=result(),
+    ):
+        created = client.post(URL, payload(machine), format="json")
+    order = client.post(
+        "/api/bakim/is-emirleri/",
+        {
+            "tahmin_kaydi_id": created.data["id"],
+            "idempotency_key": "reject-approved-order",
+            "baslik": "Onaylanan karar",
+            "aciklama": "Saha ekibine iletildi.",
+        },
+        format="json",
+    )
+    assert order.status_code == 201
+
+    response = client.post(
+        f"{URL}{created.data['id']}/reddet/",
+        {},
+        format="json",
+        HTTP_X_TRACE_ID="approved-trace",
+    )
+
+    assert response.status_code == 409
+    assert response.data["hata"]["kod"] == "TAHMIN_ONAYLANMIS"
+    assert response.data["hata"]["trace_id"] == "approved-trace"
+    assert not TahminReddi.objects.filter(tahmin_id=created.data["id"]).exists()
+
+
+def test_reject_replay_prediction_returns_standard_conflict(client, user, machine):
+    record = TahminKaydi.objects.create(
+        **record_values(user, machine, kaynak=TahminKaydi.Kaynak.REPLAY)
+    )
+
+    response = client.post(f"{URL}{record.pk}/reddet/", {}, format="json")
+
+    assert response.status_code == 409
+    assert response.data["hata"]["kod"] == "REPLAY_TAHMINI_REDDEDILEMEZ"
+    assert not TahminReddi.objects.filter(tahmin=record).exists()
+
+
+@pytest.mark.parametrize(
+    "body",
+    (
+        {"red_nedeni": ["gecersiz"]},
+        {"red_nedeni": "x" * 501},
+    ),
+)
+def test_reject_prediction_validation_uses_standard_field_errors(
+    client, user, machine, body
+):
+    record = TahminKaydi.objects.create(**record_values(user, machine))
+
+    response = client.post(f"{URL}{record.pk}/reddet/", body, format="json")
+
+    assert response.status_code == 400
+    assert response.data["hata"]["kod"] == "GECERSIZ_ISTEK"
+    assert response.data["hata"]["alanlar"]["red_nedeni"]
+    assert not TahminReddi.objects.filter(tahmin=record).exists()
+
+
+def test_reject_missing_prediction_returns_safe_standard_404(client, user):
+    response = client.post(
+        f"{URL}{uuid.uuid4()}/reddet/",
+        {},
+        format="json",
+        HTTP_X_TRACE_ID="missing-reject-trace",
+    )
+
+    assert response.status_code == 404
+    assert response.data["hata"]["kod"] == "KAYNAK_BULUNAMADI"
+    assert response.data["hata"]["trace_id"] == "missing-reject-trace"
+    serialized = str(response.data)
+    assert "Traceback" not in serialized
+    assert "DoesNotExist" not in serialized
+    assert "SELECT" not in serialized
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     (
@@ -799,5 +960,5 @@ def test_list_and_detail_have_bounded_query_counts(
         created = client.post(URL, payload(machine), format="json")
     with django_assert_max_num_queries(6):
         assert client.get(URL).status_code == 200
-    with django_assert_max_num_queries(7):
+    with django_assert_max_num_queries(8):
         assert client.get(f"{URL}{created.data['id']}/").status_code == 200

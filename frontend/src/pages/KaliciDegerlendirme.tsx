@@ -140,7 +140,12 @@ export function KaliciDegerlendirme() {
         if (err.status === 409) {
           setHata('Bu kayıt isteği önceki bir işlemle çakıştı. Bilgileri kontrol edip yeni bir değerlendirme başlatın.')
         } else if (err.status === 400 && err.alanlar) {
-          setAlanHatalari(err.alanlar as Record<string, string[]>)
+          const cleanAlanlar: Record<string, string[]> = {}
+          for (const [k, v] of Object.entries(err.alanlar)) {
+            const cleanKey = k.replace(/^sensor_verisi\./, '')
+            cleanAlanlar[cleanKey] = Array.isArray(v) ? v.map(String) : [String(v)]
+          }
+          setAlanHatalari(cleanAlanlar)
           setHata(err.message)
         } else {
           setHata(err.message)
@@ -246,101 +251,118 @@ export function KaliciDegerlendirme() {
                   <option value="M">Orta Kalite (M)</option>
                   <option value="H">Yüksek Kalite (H)</option>
                 </select>
-                {alanHatalari['sensor_verisi.urun_tipi'] && (
-                  <p className="alan-hatasi">{alanHatalari['sensor_verisi.urun_tipi'].join(' ')}</p>
+                {alanHatalari['urun_tipi'] && (
+                  <p className="alan-hatasi">{alanHatalari['urun_tipi'].join(' ')}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="hava_sicakligi_k">Hava Sıcaklığı</label>
+                <label htmlFor="hava_sicakligi_k">
+                  Hava Sıcaklığı <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>(290.0 - 310.0 K)</span>
+                </label>
                 <div className="input-birimli">
                   <input
                     id="hava_sicakligi_k"
                     type="number"
                     step="0.1"
+                    min="290"
+                    max="310"
                     value={girdi.hava_sicakligi_k}
                     onChange={(e) => alanDegistir('hava_sicakligi_k', e.target.value)}
                     disabled={gonderiliyor}
                   />
                   <span className="input-birim">K</span>
                 </div>
-                {alanHatalari['sensor_verisi.hava_sicakligi_k'] && (
-                  <p className="alan-hatasi">{alanHatalari['sensor_verisi.hava_sicakligi_k'].join(' ')}</p>
+                {(alanHatalari.hava_sicakligi_k || alanHatalari['sensor_verisi.hava_sicakligi_k']) && (
+                  <p className="alan-hatasi">{(alanHatalari.hava_sicakligi_k || alanHatalari['sensor_verisi.hava_sicakligi_k']).join(' ')}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="proses_sicakligi_k">Proses Sıcaklığı</label>
+                <label htmlFor="proses_sicakligi_k">
+                  Proses Sıcaklığı <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>(300.0 - 320.0 K)</span>
+                </label>
                 <div className="input-birimli">
                   <input
                     id="proses_sicakligi_k"
                     type="number"
                     step="0.1"
+                    min="300"
+                    max="320"
                     value={girdi.proses_sicakligi_k}
                     onChange={(e) => alanDegistir('proses_sicakligi_k', e.target.value)}
                     disabled={gonderiliyor}
                   />
                   <span className="input-birim">K</span>
                 </div>
-                {alanHatalari['sensor_verisi.proses_sicakligi_k'] && (
-                  <p className="alan-hatasi">{alanHatalari['sensor_verisi.proses_sicakligi_k'].join(' ')}</p>
+                {(alanHatalari.proses_sicakligi_k || alanHatalari['sensor_verisi.proses_sicakligi_k']) && (
+                  <p className="alan-hatasi">{(alanHatalari.proses_sicakligi_k || alanHatalari['sensor_verisi.proses_sicakligi_k']).join(' ')}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="donus_hizi_rpm">Dönüş Hızı</label>
+                <label htmlFor="donus_hizi_rpm">
+                  Dönüş Hızı <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>(1000 - 3200 rpm)</span>
+                </label>
                 <div className="input-birimli">
                   <input
                     id="donus_hizi_rpm"
                     type="number"
                     step="1"
-                    min="0"
+                    min="1000"
+                    max="3200"
                     value={girdi.donus_hizi_rpm}
                     onChange={(e) => alanDegistir('donus_hizi_rpm', e.target.value)}
                     disabled={gonderiliyor}
                   />
                   <span className="input-birim">rpm</span>
                 </div>
-                {alanHatalari['sensor_verisi.donus_hizi_rpm'] && (
-                  <p className="alan-hatasi">{alanHatalari['sensor_verisi.donus_hizi_rpm'].join(' ')}</p>
+                {(alanHatalari.donus_hizi_rpm || alanHatalari['sensor_verisi.donus_hizi_rpm']) && (
+                  <p className="alan-hatasi">{(alanHatalari.donus_hizi_rpm || alanHatalari['sensor_verisi.donus_hizi_rpm']).join(' ')}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="tork_nm">Tork</label>
+                <label htmlFor="tork_nm">
+                  Tork <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>(1.0 - 90.0 Nm)</span>
+                </label>
                 <div className="input-birimli">
                   <input
                     id="tork_nm"
                     type="number"
                     step="0.1"
-                    min="0"
+                    min="1"
+                    max="90"
                     value={girdi.tork_nm}
                     onChange={(e) => alanDegistir('tork_nm', e.target.value)}
                     disabled={gonderiliyor}
                   />
                   <span className="input-birim">Nm</span>
                 </div>
-                {alanHatalari['sensor_verisi.tork_nm'] && (
-                  <p className="alan-hatasi">{alanHatalari['sensor_verisi.tork_nm'].join(' ')}</p>
+                {(alanHatalari.tork_nm || alanHatalari['sensor_verisi.tork_nm']) && (
+                  <p className="alan-hatasi">{(alanHatalari.tork_nm || alanHatalari['sensor_verisi.tork_nm']).join(' ')}</p>
                 )}
               </div>
 
-              <div>
-                <label htmlFor="takim_asinmasi_dk">Takım Aşınması</label>
+              <div className="form-grid-tam">
+                <label htmlFor="takim_asinmasi_dk">
+                  Takım Aşınması <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>(0 - 300 dk)</span>
+                </label>
                 <div className="input-birimli">
                   <input
                     id="takim_asinmasi_dk"
                     type="number"
                     step="1"
                     min="0"
+                    max="300"
                     value={girdi.takim_asinmasi_dk}
                     onChange={(e) => alanDegistir('takim_asinmasi_dk', e.target.value)}
                     disabled={gonderiliyor}
                   />
-                  <span className="input-birim">dakika</span>
+                  <span className="input-birim">dk</span>
                 </div>
-                {alanHatalari['sensor_verisi.takim_asinmasi_dk'] && (
-                  <p className="alan-hatasi">{alanHatalari['sensor_verisi.takim_asinmasi_dk'].join(' ')}</p>
+                {(alanHatalari.takim_asinmasi_dk || alanHatalari['sensor_verisi.takim_asinmasi_dk']) && (
+                  <p className="alan-hatasi">{(alanHatalari.takim_asinmasi_dk || alanHatalari['sensor_verisi.takim_asinmasi_dk']).join(' ')}</p>
                 )}
               </div>
             </div>

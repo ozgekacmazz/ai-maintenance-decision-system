@@ -1,87 +1,66 @@
 # Bakım öncelik ve karar motoru
 
-## İş problemi ve mimari
+Bu belge güncel karar sözleşmesini tanımlar. Motor ikinci bir ML modeli değil; model çıktısını, makine kritikliğini ve snapshot alınmış stok/tedarik bağlamını denetlenebilir bir iş kararına dönüştüren saf ve deterministik politikadır.
 
-`maintenance-priority-1.0.0`, kalıcı tahmin snapshot'larını bakım kuyruğunda
-karşılaştırılabilir, açıklanabilir bir karara dönüştüren saf ve deterministik kural
-motorudur. İkinci bir ML modeli değildir: iş politikası görünür sabitlerde tutulur,
-aynı girdiden aynı sonuç alınır ve her puan katkısı denetlenebilir. Motor DB veya
-request nesnesi kullanmaz; canlı makine, parça ve stok verisini tekrar okumaz.
+## Model çıktısı ile iş kuralının ayrımı
 
-Teknik aciliyet ile tedarik riski ayrı tutulur. Böylece parça hazırlığı teknik riski
-gizleyemez; uzun tedarik süresi de düşük model riskini yapay bir kritik arızaya
-dönüştüremez.
+Binary model `risk_orani` ve `risk_uyarisi`; fiziksel modeller HDF/PWF/OSF/TWF sinyalleri üretir. RNF model çıktısı değildir. Legacy karar motoru teknik aciliyet, tedarik riski, 0–100 `nihai_oncelik_skoru`, dört seviyeli açıklama etiketi, aksiyon ve güven gerekçelerini üretmeye devam eder. Bunlar canonical genel önceliğin yerine kullanılmaz.
 
-## Formüller, ağırlıklar ve sınırlar
+## Canonical 1–5 genel öncelik
 
-Teknik skorun katkıları şunlardır:
+Formül sürümü `general-priority-1.0.0`:
 
-- `55 × risk_orani`
-- `25 × (kritiklik_snapshot - 1) / 4`
-- risk eşiği aşıldıysa `10`
-- güvenilir HDF/PWF/OSF varsa `10`; riskli ve güvenilir tip yoksa belirsizlik için `5`
-- eşik aşan deneysel TWF varsa sınırlı olarak `2`
+```text
+stok_katsayisi = 1 + tedarik_riski_skoru / 100
+ham_genel_oncelik = risk_orani × makine_kritikligi × stok_katsayisi
+```
 
-Risk uyarısı yoksa teknik skor en fazla 39'dur. Tedarik skoru her parçanın riskini
-hesaplar ve en yüksek skoru darboğaz kabul eder; eşitlik parça koduyla çözülür.
-Sıralama değişikliği sonucu değiştirmez.
+`risk_orani` 0–1, `makine_kritikligi` 1–5 ve `tedarik_riski_skoru` 0–100 aralığındadır. Hesap `Decimal` ile yapılır; stok katsayısı ve ham değer dört ondalığa `ROUND_HALF_UP` ile quantize edilir.
 
-- Yeterli stok: bakım sonrası miktar minimum stok altındaysa 20, değilse 5.
-- Yetersiz stok: `60 + 20 × eksik_orani + min(20, tedarik_gun / 30 × 20)`.
-- `KAYIT_YOK`: stok sıfır sayılmaz; skor 55 ve ERP doğrulama aksiyonu üretir.
-- ERP eşlemesi yok: tedarik skoru 0; teknik karar devam eder.
+| Ham değer | Genel öncelik |
+|---:|---:|
+| 0–2 | 1 |
+| >2–4 | 2 |
+| >4–6 | 3 |
+| >6–8 | 4 |
+| >8–10 | 5 |
 
-`nihai_oncelik = 0.80 × teknik_aciliyet + 0.20 × tedarik_riski` formülü uygulanır.
-Bütün skorlar 0–100'e clamp edilir ve iki ondalığa yuvarlanır. Seviye aralıkları
-`[0,25)=DUSUK`, `[25,50)=ORTA`, `[50,75)=YUKSEK`, `[75,100]=KRITIK` biçimindedir.
+Yeni kalıcı tahminde `genel_oncelik`, `stok_katsayisi`, `ham_genel_oncelik` ve formül sürümü aynı immutable `BakimKarariSnapshot` içine yazılır. Dört alan birlikte dolu veya birlikte `NULL` olmalıdır. Legacy snapshot'lara yapay backfill uygulanmaz; API bunları güvenli null canonical alanlarla gösterebilir.
 
-## Aksiyon, güven ve arıza tipi politikası
+## Legacy açıklama motoru
 
-Ana aksiyon matrisi DUSUK için `IZLEMEYE_DEVAM`, ORTA için `PLANLI_KONTROL`,
-YUKSEK için `ONCELIKLI_BAKIM_PLANLA`, KRITIK için
-`ACIL_TEKNIK_DEGERLENDIRME` üretir. Riskli ve tipi belirsiz düşük/orta sonuçta
-`TEKNIK_INCELEME` kullanılır. `KAYIT_YOK` için `STOK_VERISINI_DOGRULA`, gerçek
-stok yetersizliği için `TEDARIK_SURECINI_BASLAT` destekleyici aksiyonudur.
+Teknik skor; risk, makine kritiklik snapshot'ı, risk uyarısı ve güvenilir fiziksel sinyallerden oluşur. Tedarik skoru stok yeterliliği, eksik oranı ve tedarik süresini değerlendirir. Legacy nihai skor:
 
-Yalnız `guvenilir_aday=true` HDF/PWF/OSF ana tip olabilir. En düşük sıralama değeri,
-eşitlikte kod belirleyicidir. TWF yalnız `YETERSIZ_DESTEK` deneysel sinyalidir; kesin
-tip veya parçaya özgü karar üretmez. RNF motor girdisi, response veya snapshot'a
-giremez. Güvenilir tip ve eksiksiz ERP bağlamı `YUKSEK`; riskli belirsizlik `ORTA`,
-TWF veya eksik stok bağlamıyla `DUSUK`; diğer durumlar `ORTA` karar güveni üretir.
+```text
+nihai_oncelik_skoru = 0.80 × teknik_aciliyet_skoru + 0.20 × tedarik_riski_skoru
+```
 
-Gerekçe ve uyarı metinleri merkezi sabit şablonlardır; kullanıcı girdisi metne
-eklenmez. Sıraları deterministiktir ve puan etkileri hesapla aynıdır. Motor otomatik
-makine durdurma veya güvenlik garantisi vermez. Nihai operasyonel karar yetkili bakım
-personeline aittir.
+Legacy 0–100 değer ve `DUSUK/ORTA/YUKSEK/KRITIK` etiketi açıklanabilirlik ve geriye uyumluluk için korunur. UI sıralama/rozet sözleşmesinin canonical kaynağı 1–5 genel önceliktir.
 
-## Snapshot, idempotency ve geçiş
+Yalnız güvenilir HDF/PWF/OSF ana fiziksel tip olabilir. TWF deneysel/yetersiz destekli sinyaldir; RNF inference veya karar girdisi değildir. Stok kaydı yokluğu sıfır stok sayılmaz; doğrulama aksiyonu üretir. Motor otomatik makine durdurmaz ve güvenlik garantisi vermez.
 
-Karar, gerekçe, destekleyici aksiyon ve uyarılar ilişkisel immutable snapshot'lardır.
-Skor, choice, sıra ve uniqueness DB constraint'leriyle korunur. ML/SHAP transaction
-dışında çalışır; tahmin, ERP ve karar snapshot'ları aynı kısa transaction içinde
-yazılır. Karar child hatası bütün oluşturmayı geri alır. Idempotent tekrarda mevcut
-UUID ve karar aynen döner, motor tekrar çalışmaz. Eski kayıtlara veri migration ile
-yapay karar üretilmez; liste ve detay bunlarda karar alanlarını güvenli `null` döndürür.
+## İş emri, override ve SLA
 
-## API, filtreleme ve sıralama
+İş emri snapshot'tan immutable `kaynak_genel_oncelik` değerini alır; `etkin_genel_oncelik` başlangıçta buna eşittir. ADMIN override yalnız etkin değeri değiştirir. Önceki/yeni değer, aktör, neden, trace ID ve version immutable iş emri olayında saklanır.
 
-Liste; `oncelik_seviyesi`, `ana_aksiyon`, `karar_guveni`,
-`minimum_nihai_skor`, `maksimum_nihai_skor` filtrelerini kabul eder. `sirala` yalnız
-`±nihai_oncelik`, `±olcum_zamani`, `±risk_orani`, `±makine_kritiklik` değerlerini
-kabul eder. Varsayılan iş kuyruğu nihai skor azalan, teknik skor azalan, ölçüm zamanı
-artan ve UUID sırasıdır. Pagination ve mevcut filtreler korunur.
+SLA politika sürümü `general-priority-sla-1.0.0`:
 
-## Örnek hesaplamalar
+| Etkin öncelik | Müdahale süresi |
+|---:|---:|
+| 1 | 168 saat |
+| 2 | 120 saat |
+| 3 | 72 saat |
+| 4 | 24 saat |
+| 5 | 4 saat |
 
-Risk 0.80, kritiklik 5, risk uyarısı ve güvenilir tip için teknik skor
-`44 + 25 + 10 + 10 = 89` olur. Yeterli stok skoru 5 ise nihai skor
-`89 × 0.8 + 5 × 0.2 = 72.2` ve seviye YUKSEK'tir. Aynı teknik durumda tam stok
-eksikliği ve 30 gün tedarik, tedarik skorunu 100 ve nihai skoru 91.2 yapar.
+Override deadline'ı override anından itibaren yeniden hesaplar. Kaynak karar değişmez. Canonical alanı olmayan legacy iş emirleri eski dört seviyeli `work-order-policy-1.0.0` SLA davranışını sürdürür; geçmiş deadline ve idempotent sonuçlar backfill edilmez.
 
-## F12 kontrol listesi ve sınırlamalar
+## Snapshot, transaction ve API
 
-Düşük risk/izleme; yüksek risk + güvenilir tip + yeterli/yetersiz/kayıtsız stok;
-belirsiz tip; yalnız TWF; idempotent 200; conflict 409; geçersiz filtre/sıralama 400;
-liste/detail karar alanları ve trace ID kontrol edilir. Sistem AI4I sentetik veri ve
-snapshot kalitesiyle sınırlıdır; iş emri, stok rezervasyonu, replay ve otomatik
-durdurma bu sürümün kapsamı dışındadır.
+ML/SHAP transaction dışında çalışır; tahmin, ERP ve karar snapshot'ları kısa transaction içinde atomik yazılır. Child kayıt hatası bütün create işlemini geri alır. Idempotent tekrarda mevcut UUID/snapshot döner ve motor yeniden çalışmaz.
+
+Tahmin listesi `genel_oncelik` filtresi ile `genel_oncelik`/`-genel_oncelik` sıralamasını destekler. ADMIN Tahmin Logları canonical önceliği ve kullanıcı karar durumunu gösterir. İş emri filtreleri kaynak/etkin önceliği ayırır.
+
+## Sınırlamalar
+
+Karar, model ve snapshot kalitesiyle sınırlıdır. Stok rezervasyonu, satın alma, bildirim ve otomatik durdurma üretmez. Nihai operasyonel yetki kullanıcıdadır; replay tahminleri operasyon kuyruğunda iş emrine dönüştürülemez.

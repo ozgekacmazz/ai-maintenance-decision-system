@@ -7,6 +7,7 @@ import type { TahminKaydiOzet } from '../types/tahminler'
 import { anaAksiyonMetni } from '../types/tahminler'
 import { MetricCard } from '../components/data-display/MetricCard'
 import { StatusBadge } from '../components/feedback/StatusBadge'
+import { GeneralPriorityBadge } from '../components/feedback/GeneralPriorityBadge'
 import { LoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 import { EmptyState } from '../components/feedback/EmptyState'
 import { ErrorState } from '../components/feedback/ErrorState'
@@ -31,7 +32,7 @@ export function Dashboard() {
         tahminKayitlariniGetir({ sayfa_boyutu: 1 }),
         tahminKayitlariniGetir({ risk_uyarisi: true, sayfa_boyutu: 1 }),
         tahminKayitlariniGetir({ oncelik_seviyesi: 'KRITIK', sayfa_boyutu: 1 }),
-        tahminKayitlariniGetir({ risk_uyarisi: true, sirala: '-nihai_oncelik', sayfa_boyutu: 10 }),
+        tahminKayitlariniGetir({ risk_uyarisi: true, sirala: '-genel_oncelik', sayfa_boyutu: 10 }),
       ])
 
       setToplamKayit(toplamRes.count)
@@ -55,7 +56,7 @@ export function Dashboard() {
           tahminKayitlariniGetir({ sayfa_boyutu: 1 }),
           tahminKayitlariniGetir({ risk_uyarisi: true, sayfa_boyutu: 1 }),
           tahminKayitlariniGetir({ oncelik_seviyesi: 'KRITIK', sayfa_boyutu: 1 }),
-          tahminKayitlariniGetir({ risk_uyarisi: true, sirala: '-nihai_oncelik', sayfa_boyutu: 10 }),
+          tahminKayitlariniGetir({ risk_uyarisi: true, sirala: '-genel_oncelik', sayfa_boyutu: 10 }),
         ])
 
         if (aktif) {
@@ -189,7 +190,7 @@ export function Dashboard() {
 
                   <div className="risk-kart-detay">
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <StatusBadge oncelik={kayit.oncelik_seviyesi} />
+                      <GeneralPriorityBadge genelOncelik={kayit.genel_oncelik} legacyOncelik={kayit.oncelik_seviyesi} />
                       <StatusBadge arizaTipi={kayit.en_yuksek_guvenilir_ariza_tipi} />
                     </div>
                     <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: '4px' }}>

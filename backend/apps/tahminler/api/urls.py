@@ -4,6 +4,7 @@ from apps.tahminler.api import views
 from apps.tahminler.api.views import RiskTahmini, TahminKaydiDetayi, TahminKaydiListesi
 
 urlpatterns = [
+    path("loglari/", views.TahminLoglari.as_view(), name="tahmin-loglari"),
     path(
         "replay-oturumlari/", views.ReplayOturumListesi.as_view(), name="replay-listesi"
     ),
@@ -48,8 +49,14 @@ urlpatterns = [
         name="replay-retry",
     ),
     path("risk/", RiskTahmini.as_view(), name="risk-tahmini"),
+    path("input-domain/", views.InputDomainContract.as_view(), name="input-domain"),
     path("kayitlar/", TahminKaydiListesi.as_view(), name="tahmin-kaydi-listesi"),
     path(
         "kayitlar/<uuid:pk>/", TahminKaydiDetayi.as_view(), name="tahmin-kaydi-detayi"
+    ),
+    path(
+        "kayitlar/<uuid:pk>/reddet/",
+        views.TahminReddet.as_view(),
+        name="tahmin-kaydi-reddet",
     ),
 ]

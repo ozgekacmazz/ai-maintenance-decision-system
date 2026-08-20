@@ -27,8 +27,8 @@ Yerel gerçek PostgreSQL create smoke ölçümleri: cold 3 öğe 75,74 ms, warm 
 61,96 ms, 250 öğe 129,28 ms, 1000 öğe 288,96 ms. Her boyutta 6 DB sorgusu çalıştı;
 öğeler `bulk_create()` ile yazıldı ve her oturum create'i CSV'yi bir kez okudu.
 Process-level dataset cache yoktur. Bunlar SLA değildir. Gerçek artifact step
-smoke'unda cold batch 497,40 ms, warm batch 160,64 ms ölçüldü. Üç negatif örnekteki
-accuracy 1,0 performans kanıtı değildir.
+smoke'unda cold batch 497,40 ms, warm batch 160,64 ms ölçüldü. Üç negatif örnek
+model performansı kanıtı değildir; accuracy replay KPI'sı olarak kullanılmaz.
 
 İlk sürüm yalnız `TEK_MAKINE` eşlemesini destekler. Replay tahmininden iş emri
 oluşturma kontrollü 409 ile yasaktır. Gelecekte MQTT/Kafka benzeri broker desteği,
@@ -124,9 +124,19 @@ normal akışta oluşur. Replay tahmininden manuel iş emri de
 
 ## Metrikler ve veri kalite gözlemi
 
-Yalnız BASARILI ve tahmin bağlantılı öğeler değerlendirilir. Binary confusion sırası
-TN/FP/FN/TP'dir. Precision `TP/(TP+FP)`, recall `TP/(TP+FN)`, F1 harmonik ortalamadır;
-sıfır paydada 0 kullanılır. Hiç sonuç yoksa binary metrik `null` olur.
+Nihai metrikler yalnız `TAMAMLANDI` oturumdaki `BASARILI` ve tahmin bağlantılı
+öğelerden hesaplanır. Pozitif sınıf `Machine failure`/arıza sınıfıdır. Confusion
+matrix satırları gerçek, sütunları tahmindir ve açık `true_negative`,
+`false_positive`, `false_negative`, `true_positive` sayımlarını döndürür. Tahmin
+sınıfı her kaydın `risk_orani >= binary_threshold` snapshot karşılaştırmasıyla,
+PR-AUC ise threshold'dan bağımsız `risk_orani` skorlarıyla hesaplanır.
+
+Precision `TP/(TP+FP)`, recall `TP/(TP+FN)`, F1 harmonik ortalamadır; sıfır paydada
+deterministik `0.0` kullanılır. F1 yalnız yardımcı metriktir. Accuracy response veya
+ürün KPI'sı değildir. Gerçek pozitif sınıf yoksa ya da geçerli risk skoru eksikse
+PR-AUC `null` ve açıklayıcı `metrik_uyarilari` ile döner. Hiç değerlendirilebilir
+sonuçta veya tamamlanmamış replay'de binary metrik `null` olur; geçici sayılar final
+performans olarak sunulmaz.
 HDF/PWF/OSF güvenilir aday, TWF deneysel metrik olarak ayrı raporlanır. RNF yalnız
 ground-truth sayısıdır. Bu metrikler model seçimi veya threshold ayarı yapmaz.
 
@@ -149,6 +159,21 @@ makine ve hatalı öğe varlığıyla filtrelenir. Öğe listesi durum, external
 binary ground truth ve sıra aralığını destekler. Unknown parametre reddedilir.
 Başarılı ilişkili öğe yolu dahil gerçek sabit sorgu sayıları yukarıdaki kalite kanıtı
 bölümünde açıklanmıştır.
+
+## Demo seed
+
+`python manage.py seed_demo` demo replay'ini production `replay_olustur` servisiyle,
+settings üzerinden çözülen prepared AI4I veri seti ve metadata dosyasından hazırlar.
+Test split'inden deterministik sırayla en fazla 250 gerçek `ReplayOgesi` oluşturulur;
+split daha küçükse gerçek sayı kullanılır ve uyarı yazılır. Metadata içindeki gerçek
+SHA-256 doğrulanır; placeholder hash veya sahte dataset kimliği üretilmez.
+
+Seed replay'i `HAZIR` bırakır. Model artefaktı seed sırasında gerekmez ve sahte tahmin
+ya da metrik oluşturulmaz. Replay UI/API üzerinden başlatıldığında gerçek inference
+için model artefaktları erişilebilir olmalıdır. Prepared dataset veya metadata eksik
+ya da geçersizse komut fail-fast davranır ve transaction sahte/eksik oturum bırakmaz.
+Aynı kullanıcı, makine, dataset hash'i, seçim ve politika bağlamıyla tekrar çalıştırma
+mevcut bütünlüklü oturumu korur; çalıştırılmış gerçek replay sıfırlanmaz.
 
 ## F12 akışı ve sınırlamalar
 

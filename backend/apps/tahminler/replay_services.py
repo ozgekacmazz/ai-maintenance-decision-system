@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import uuid
 from copy import deepcopy
@@ -8,7 +9,7 @@ import pandas as pd
 from bakim_ml.loaders import DatasetLoadError, load_prepared_dataset
 from bakim_ml.training import split_dataset
 from django.conf import settings
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from apps.bakim.models import Makine
@@ -61,7 +62,7 @@ def _load_selected(*, split, offset, count):
     return selected.iloc[offset : offset + count], checksum
 
 
-def replay_olustur(*, actor, trace_id, data):
+def replay_olustur(*, actor, trace_id, data, idempotent=False):
     values = deepcopy(data)
     machine = Makine.objects.filter(pk=values["makine_id"], aktif=True).first()
     if not machine:
@@ -77,6 +78,28 @@ def replay_olustur(*, actor, trace_id, data):
         raise ReplayCakismasiHatasi(
             "REPLAY_MAKINE_ESLEMESI_GECERSIZ", "Seçim replay öğesi üretmedi."
         )
+    if idempotent:
+        existing = (
+            ReplayOturumu.objects.filter(
+                olusturan=actor,
+                makine=machine,
+                politika_surumu=REPLAY_POLICY_VERSION,
+                kaynak_veri_seti="ai4i2020_prepared",
+                prepared_sha256=checksum,
+                split=values["split"],
+                baslangic_ofseti=values["baslangic_ofseti"],
+                toplam_oge=len(selected),
+                varsayilan_batch_boyutu=values["varsayilan_batch_boyutu"],
+                sanal_aralik_saniye=values["sanal_aralik_saniye"],
+                makine_esleme_politikasi="TEK_MAKINE",
+            )
+            .annotate(gercek_oge_sayisi=models.Count("ogeler"))
+            .filter(gercek_oge_sayisi=len(selected))
+            .order_by("olusturulma_zamani")
+            .first()
+        )
+        if existing:
+            return existing
     now = timezone.now()
     with transaction.atomic():
         session = ReplayOturumu(
@@ -111,6 +134,35 @@ def replay_olustur(*, actor, trace_id, data):
         ReplayOgesi.objects.bulk_create(items)
         _event(session, actor, trace_id, "OTURUM_OLUSTURULDU")
     return session
+
+
+def replay_butunlugunu_dogrula(session):
+    errors = []
+    if session.kaynak_veri_seti != "ai4i2020_prepared":
+        errors.append("Replay veri seti kimliği gerçek prepared kaynakla uyuşmuyor.")
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", session.prepared_sha256 or ""):
+        errors.append("Replay prepared SHA-256 değeri geçersiz.")
+    elif set(session.prepared_sha256) == {"0"}:
+        errors.append("Replay prepared SHA-256 placeholder olamaz.")
+
+    items = session.ogeler.all()
+    actual_count = items.count()
+    if session.toplam_oge <= 0 or actual_count != session.toplam_oge:
+        errors.append("Replay toplam öğe sayısı kalıcı öğelerle uyuşmuyor.")
+    if items.filter(ground_truth_snapshot={}).exists():
+        errors.append("Replay öğelerinde ground-truth snapshot eksik.")
+    if items.filter(sensor_snapshot={}).exists():
+        errors.append("Replay öğelerinde sensor snapshot eksik.")
+    if items.filter(external_machine_id="").exists():
+        errors.append("Replay öğelerinde kaynak makine kimliği eksik.")
+    if (
+        session.durum == ReplayOturumu.Durum.HAZIR
+        and items.filter(tahmin_kaydi__isnull=False).exists()
+    ):
+        errors.append("Hazır replay oturumunda tahmin kaydı bulunamaz.")
+    if errors:
+        raise ReplayVeriSetiHatasi(" ".join(errors))
+    return actual_count
 
 
 def replay_gecis(*, session_id, actor, trace_id, expected_version, target, reason=None):

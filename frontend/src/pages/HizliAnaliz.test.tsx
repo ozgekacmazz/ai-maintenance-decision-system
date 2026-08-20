@@ -1,12 +1,27 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HizliAnaliz } from './HizliAnaliz'
 import * as tahminApi from '../api/tahminler'
 import type { RiskTahminiYaniti } from '../types/tahminler'
 import { ApiHatasi } from '../types/apiHata'
+
+const INPUT_DOMAIN = {
+  contract_version: 'ai4i-input-domain-1.0.0',
+  fields: {
+    hava_sicakligi_k: { canonical_unit: 'K', display_unit: '°C', supported_min: 290, supported_max: 310 },
+    proses_sicakligi_k: { canonical_unit: 'K', display_unit: '°C', supported_min: 300, supported_max: 320 },
+    donus_hizi_rpm: { canonical_unit: 'rpm', display_unit: 'rpm', supported_min: 1000, supported_max: 3200 },
+    tork_nm: { canonical_unit: 'N·m', display_unit: 'N·m', supported_min: 1, supported_max: 90 },
+    takim_asinmasi_dk: { canonical_unit: 'min', display_unit: 'dk', supported_min: 0, supported_max: 300 },
+  },
+}
+
+beforeEach(() => {
+  vi.spyOn(tahminApi, 'inputDomainContractGetir').mockResolvedValue(INPUT_DOMAIN)
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -101,12 +116,12 @@ describe('HizliAnaliz', () => {
 
   it('sensör giriş formunu ve varsayılan birimleri sunar', () => {
     renderComponent()
-    expect(screen.getByLabelText('Ürün Tipi')).toBeInTheDocument()
-    expect(screen.getByLabelText('Hava Sıcaklığı')).toBeInTheDocument()
-    expect(screen.getByLabelText('Proses Sıcaklığı')).toBeInTheDocument()
-    expect(screen.getByLabelText('Dönüş Hızı')).toBeInTheDocument()
-    expect(screen.getByLabelText('Tork')).toBeInTheDocument()
-    expect(screen.getByLabelText('Takım Aşınması')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Ürün Tipi/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Hava Sıcaklığı/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Proses Sıcaklığı/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Dönüş Hızı/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Tork/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Takım Aşınması/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sensör Analizini Başlat' })).toBeInTheDocument()
   })
 
@@ -184,6 +199,31 @@ describe('HizliAnaliz', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Hava sıcaklığı 0 K’den büyük olmalıdır.')).toBeInTheDocument()
+    })
+  })
+
+  it('başarılı sonuçtan sonraki başarısız submit sırasında eski sonucu temizler', async () => {
+    vi.spyOn(tahminApi, 'hizliRiskTahmini')
+      .mockResolvedValueOnce(MOCK_LOW_RISK_RESPONSE)
+      .mockRejectedValueOnce(
+        new ApiHatasi(503, 'SERVIS_KULLANILAMIYOR', 'Tahmin servisine şu anda ulaşılamıyor.')
+      )
+
+    renderComponent()
+    const submitButton = screen.getByRole('button', { name: 'Sensör Analizini Başlat' })
+
+    await userEvent.click(submitButton)
+    await waitFor(() => expect(screen.getByText('%12')).toBeInTheDocument())
+
+    await userEvent.click(submitButton)
+
+    await waitFor(() => {
+      expect(screen.queryByText('%12')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Bu ölçümde belirgin bir arıza sinyali görülmedi.')
+      ).not.toBeInTheDocument()
+      expect(screen.getByText('Tahmin servisine şu anda ulaşılamıyor.')).toBeInTheDocument()
+      expect(screen.getByText('Analiz sonucu burada görüntülenecek.')).toBeInTheDocument()
     })
   })
 

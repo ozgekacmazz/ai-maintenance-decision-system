@@ -6,13 +6,16 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.fields import empty
 
+from apps.tahminler.domain_validation import model_girdilerini_dogrula
 from apps.tahminler.models import (
     ArizaTipiSnapshot,
     BakimKarariSnapshot,
     ErpSnapshot,
     ShapEtkisiSnapshot,
     TahminKaydi,
+    TahminReddi,
 )
+from apps.tahminler.selectors import secilen_is_emri
 
 
 class SonluSayiAlani(serializers.FloatField):
@@ -64,22 +67,13 @@ class RiskTahminiGirdiSerializer(serializers.Serializer):
             )
         return super().to_internal_value(data)
 
-    def validate_hava_sicakligi_k(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Hava sıcaklığı 0 K'den büyük olmalıdır.")
-        return value
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        return model_girdilerini_dogrula(attrs)
 
-    def validate_proses_sicakligi_k(self, value):
-        if value <= 0:
-            raise serializers.ValidationError(
-                "Proses sıcaklığı 0 K'den büyük olmalıdır."
-            )
-        return value
 
-    def validate_donus_hizi_rpm(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Dönüş hızı sıfırdan büyük olmalıdır.")
-        return value
+class TahminReddetSerializer(serializers.Serializer):
+    red_nedeni = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
 
 class TahminKaydiYazmaSerializer(serializers.Serializer):
@@ -120,6 +114,7 @@ class SorguBooleanField(serializers.BooleanField):
 
 class TahminKaydiFiltreSerializer(serializers.Serializer):
     makine_id = serializers.IntegerField(required=False, min_value=1)
+    genel_oncelik = serializers.IntegerField(required=False, min_value=1, max_value=5)
     risk_uyarisi = SorguBooleanField(required=False)
     kaynak = serializers.ChoiceField(required=False, choices=TahminKaydi.Kaynak.choices)
     olcum_zamani_baslangic = serializers.DateTimeField(required=False)
@@ -147,6 +142,8 @@ class TahminKaydiFiltreSerializer(serializers.Serializer):
         choices=(
             "nihai_oncelik",
             "-nihai_oncelik",
+            "genel_oncelik",
+            "-genel_oncelik",
             "olcum_zamani",
             "-olcum_zamani",
             "risk_orani",
@@ -162,6 +159,10 @@ class TahminKaydiFiltreSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {field: ["Beklenmeyen filtre alanı."] for field in unexpected}
             )
+        if "genel_oncelik" in data and data.get("genel_oncelik") == "":
+            raise serializers.ValidationError(
+                {"genel_oncelik": ["Bu alan boş bırakılamaz."]}
+            )
         return super().to_internal_value(data)
 
     def validate(self, attrs):
@@ -174,6 +175,50 @@ class TahminKaydiFiltreSerializer(serializers.Serializer):
         if minimum is not None and maximum is not None and minimum > maximum:
             raise serializers.ValidationError(
                 "Minimum nihai skor maksimumdan büyük olamaz."
+            )
+        return attrs
+
+
+class TahminLoguFiltreSerializer(serializers.Serializer):
+    karar_durumu = serializers.ChoiceField(
+        required=False, choices=("BEKLIYOR", "ONAYLANDI", "REDDEDILDI", "TUTARSIZ")
+    )
+    makine_id = serializers.IntegerField(required=False, min_value=1)
+    makine_kodu = serializers.CharField(required=False, max_length=50)
+    kaynak = serializers.ChoiceField(required=False, choices=TahminKaydi.Kaynak.choices)
+    baslangic = serializers.DateField(required=False)
+    bitis = serializers.DateField(required=False)
+    genel_oncelik = serializers.IntegerField(required=False, min_value=1, max_value=5)
+    sirala = serializers.ChoiceField(
+        required=False,
+        choices=(
+            "olcum_zamani",
+            "-olcum_zamani",
+            "risk_orani",
+            "-risk_orani",
+            "genel_oncelik",
+            "-genel_oncelik",
+            "karar_zamani",
+            "-karar_zamani",
+        ),
+    )
+
+    def to_internal_value(self, data):
+        unexpected = sorted(set(data) - set(self.fields) - {"sayfa", "sayfa_boyutu"})
+        if unexpected:
+            raise serializers.ValidationError(
+                {field: ["Beklenmeyen filtre alanı."] for field in unexpected}
+            )
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        if (
+            attrs.get("baslangic")
+            and attrs.get("bitis")
+            and attrs["baslangic"] > attrs["bitis"]
+        ):
+            raise serializers.ValidationError(
+                {"bitis": ["Bitiş tarihi başlangıç tarihinden önce olamaz."]}
             )
         return attrs
 
@@ -229,6 +274,10 @@ class BakimKarariSerializer(serializers.ModelSerializer):
             "tedarik_riski_skoru",
             "nihai_oncelik_skoru",
             "oncelik_seviyesi",
+            "genel_oncelik",
+            "stok_katsayisi",
+            "ham_genel_oncelik",
+            "genel_oncelik_formul_surumu",
             "ana_aksiyon",
             "destekleyici_aksiyonlar",
             "ana_ariza_tipi",
@@ -249,6 +298,8 @@ class TahminKaydiListeSerializer(serializers.ModelSerializer):
     erp_snapshot_var = serializers.SerializerMethodField()
     nihai_oncelik_skoru = serializers.SerializerMethodField()
     oncelik_seviyesi = serializers.SerializerMethodField()
+    genel_oncelik = serializers.SerializerMethodField()
+    genel_oncelik_formul_surumu = serializers.SerializerMethodField()
     ana_aksiyon = serializers.SerializerMethodField()
     karar_guveni = serializers.SerializerMethodField()
 
@@ -268,6 +319,8 @@ class TahminKaydiListeSerializer(serializers.ModelSerializer):
             "erp_snapshot_var",
             "nihai_oncelik_skoru",
             "oncelik_seviyesi",
+            "genel_oncelik",
+            "genel_oncelik_formul_surumu",
             "ana_aksiyon",
             "karar_guveni",
         )
@@ -303,6 +356,14 @@ class TahminKaydiListeSerializer(serializers.ModelSerializer):
         decision = self._decision(obj)
         return decision.oncelik_seviyesi if decision else None
 
+    def get_genel_oncelik(self, obj):
+        decision = self._decision(obj)
+        return decision.genel_oncelik if decision else None
+
+    def get_genel_oncelik_formul_surumu(self, obj):
+        decision = self._decision(obj)
+        return decision.genel_oncelik_formul_surumu if decision else None
+
     def get_ana_aksiyon(self, obj):
         decision = self._decision(obj)
         return decision.ana_aksiyon if decision else None
@@ -310,6 +371,144 @@ class TahminKaydiListeSerializer(serializers.ModelSerializer):
     def get_karar_guveni(self, obj):
         decision = self._decision(obj)
         return decision.karar_guveni if decision else None
+
+
+class TahminLoguSerializer(serializers.ModelSerializer):
+    makine = serializers.SerializerMethodField()
+    genel_oncelik = serializers.SerializerMethodField()
+    legacy_oncelik_seviyesi = serializers.SerializerMethodField()
+    legacy_nihai_oncelik_skoru = serializers.SerializerMethodField()
+    karar_durumu = serializers.SerializerMethodField()
+    karar_veren = serializers.SerializerMethodField()
+    karar_zamani = serializers.SerializerMethodField()
+    karar_nedeni = serializers.SerializerMethodField()
+    is_emri_bilgisi = serializers.SerializerMethodField()
+    onay_bilgisi = serializers.SerializerMethodField()
+    red_bilgisi = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TahminKaydi
+        fields = (
+            "id",
+            "olcum_zamani",
+            "makine",
+            "kaynak",
+            "risk_orani",
+            "risk_uyarisi",
+            "genel_oncelik",
+            "legacy_oncelik_seviyesi",
+            "legacy_nihai_oncelik_skoru",
+            "karar_durumu",
+            "karar_veren",
+            "karar_zamani",
+            "karar_nedeni",
+            "is_emri_bilgisi",
+            "onay_bilgisi",
+            "red_bilgisi",
+        )
+
+    @staticmethod
+    def _decision(obj):
+        try:
+            return obj.bakim_karari
+        except BakimKarariSnapshot.DoesNotExist:
+            return None
+
+    @staticmethod
+    def _red(obj):
+        try:
+            return obj.red_bilgisi
+        except TahminReddi.DoesNotExist:
+            return None
+
+    def get_makine(self, obj):
+        return {
+            "id": obj.makine_id,
+            "kod": obj.makine_kodu_snapshot,
+            "ad": obj.makine_adi_snapshot,
+        }
+
+    def get_genel_oncelik(self, obj):
+        decision = self._decision(obj)
+        return decision.genel_oncelik if decision else None
+
+    def get_legacy_oncelik_seviyesi(self, obj):
+        decision = self._decision(obj)
+        return decision.oncelik_seviyesi if decision else None
+
+    def get_legacy_nihai_oncelik_skoru(self, obj):
+        decision = self._decision(obj)
+        return decision.nihai_oncelik_skoru if decision else None
+
+    def get_karar_durumu(self, obj):
+        has_order = bool(obj.log_is_emri_var)
+        has_red = bool(obj.log_red_var)
+        if has_order and has_red:
+            return "TUTARSIZ"
+        if has_order:
+            return "ONAYLANDI"
+        if has_red:
+            return "REDDEDILDI"
+        return "BEKLIYOR"
+
+    def get_karar_veren(self, obj):
+        status = self.get_karar_durumu(obj)
+        if status == "ONAYLANDI":
+            order = secilen_is_emri(obj)
+            return order.olusturan.username if order else None
+        if status == "REDDEDILDI":
+            red = self._red(obj)
+            return red.reddeden.username if red else None
+        return None
+
+    def get_karar_zamani(self, obj):
+        status = self.get_karar_durumu(obj)
+        if status == "ONAYLANDI":
+            order = secilen_is_emri(obj)
+            return order.olusturulma_zamani if order else None
+        if status == "REDDEDILDI":
+            red = self._red(obj)
+            return red.olusturulma_zamani if red else None
+        return None
+
+    def get_karar_nedeni(self, obj):
+        red = self._red(obj)
+        return (
+            red.red_nedeni
+            if self.get_karar_durumu(obj) == "REDDEDILDI" and red
+            else None
+        )
+
+    def get_is_emri_bilgisi(self, obj):
+        return (
+            self.get_onay_bilgisi(obj)
+            if self.get_karar_durumu(obj) == "ONAYLANDI"
+            else None
+        )
+
+    def get_onay_bilgisi(self, obj):
+        order = secilen_is_emri(obj)
+        if not order:
+            return None
+        return {
+            "id": str(order.id),
+            "is_emri_numarasi": order.is_emri_numarasi,
+            "durum": order.durum,
+            "olusturan": order.olusturan.username,
+            "olusturulma_zamani": serializers.DateTimeField().to_representation(
+                order.olusturulma_zamani
+            ),
+        }
+
+    def get_red_bilgisi(self, obj):
+        red = self._red(obj)
+        if not red:
+            return None
+        return {
+            "reddeden": red.reddeden.username,
+            "reddetme_zamani": red.olusturulma_zamani,
+            "red_nedeni": red.red_nedeni,
+        }
 
 
 class TahminKaydiDetaySerializer(serializers.ModelSerializer):
@@ -321,6 +520,9 @@ class TahminKaydiDetaySerializer(serializers.ModelSerializer):
     shap_etkileri = serializers.SerializerMethodField()
     erp_snapshotlari = ErpSnapshotSerializer(many=True)
     bakim_karari = serializers.SerializerMethodField()
+
+    red_bilgisi = serializers.SerializerMethodField()
+    is_emri_bilgisi = serializers.SerializerMethodField()
 
     class Meta:
         model = TahminKaydi
@@ -344,6 +546,8 @@ class TahminKaydiDetaySerializer(serializers.ModelSerializer):
             "olusturan",
             "trace_id",
             "bakim_karari",
+            "red_bilgisi",
+            "is_emri_bilgisi",
         )
 
     def get_tekrarlandi(self, obj):
@@ -367,6 +571,7 @@ class TahminKaydiDetaySerializer(serializers.ModelSerializer):
             "threshold": obj.binary_threshold,
             "model_version": obj.binary_model_version,
             "pipeline_version": obj.binary_pipeline_version,
+            "input_domain_contract_surumu": obj.input_domain_contract_surumu,
             "base_value": obj.binary_base_value,
         }
 
@@ -393,3 +598,28 @@ class TahminKaydiDetaySerializer(serializers.ModelSerializer):
         except BakimKarariSnapshot.DoesNotExist:
             return None
         return BakimKarariSerializer(decision).data
+
+    def get_red_bilgisi(self, obj):
+        try:
+            red = obj.red_bilgisi
+            return {
+                "reddeden": red.reddeden.username,
+                "reddetme_zamani": red.olusturulma_zamani,
+                "red_nedeni": red.red_nedeni,
+            }
+        except Exception:
+            return None
+
+    def get_is_emri_bilgisi(self, obj):
+        is_emri = secilen_is_emri(obj)
+        if not is_emri:
+            return None
+        return {
+            "id": str(is_emri.id),
+            "is_emri_numarasi": is_emri.is_emri_numarasi,
+            "durum": is_emri.durum,
+            "olusturan": is_emri.olusturan.username,
+            "olusturulma_zamani": serializers.DateTimeField().to_representation(
+                is_emri.olusturulma_zamani
+            ),
+        }

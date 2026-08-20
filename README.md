@@ -1,331 +1,221 @@
 # AI Destekli Bakım Karar Sistemi
 
-Bu depo, makinelerin sensör verilerinden arıza riski üreten bakım karar destek sisteminin belgelerini, uygulamasını ve ML paketini içerir.
+Sensör ölçümlerinden arıza riski ve fiziksel arıza sinyalleri üreten; bunları açıklanabilir bakım kararlarına ve kullanıcı onaylı iş emirlerine dönüştüren Django/React tabanlı karar destek sistemidir. Model öneri üretir, iş kuralları canonical önceliği hesaplar, kullanıcı onaylar veya reddeder; yalnız onaydan sonra iş emri oluşur. Sistem kesin arıza garantisi vermez veya makineyi otomatik durdurmaz.
 
-Kalıcı tahminler ayrıca saf, versiyonlu ve açıklanabilir bir kural motoruyla teknik
-aciliyet, tedarik riski ve bakım önceliği snapshot'ı üretir. Formüller ve güvenlik
-sınırları [bakım öncelik motoru belgesinde](docs/MAINTENANCE_PRIORITY_ENGINE.md) yer alır.
+## Temel özellikler
 
-Bakım kararı, optimistic concurrency ve immutable olay geçmişi kullanan kontrollü
-[iş emri yaşam döngüsüne](docs/WORK_ORDER_WORKFLOW.md) dönüştürülebilir.
+- JWT login, HttpOnly refresh cookie ve backend tarafından zorlanan `ADMIN`/`USER` rolleri
+- Makine, parça, stok ve kullanıcı yönetimi; en az yetkili makine lookup
+- Celsius girişli Hızlı Analiz ve Kelvin canonical API/model sınırı
+- Metadata kaynaklı, sürümlü input-domain doğrulaması
+- Binary failure risk, multi-label HDF/PWF/OSF/TWF inference ve SHAP açıklamaları
+- Kalıcı tahmin geçmişi, detay ve immutable snapshot'lar
+- Kullanıcı kontrollü Onayla/Reddet; canonical 1–5 öncelik
+- Aksiyon/parça/stok bilgili iş emri, state machine, SLA, ADMIN override ve immutable audit
+- ADMIN Tahmin Logları
+- Gerçek prepared AI4I verisinden idempotent sensör replay; pause/resume/cancel
+- Precision, Recall, PR-AUC, Confusion Matrix ve yardımcı F1 replay metrikleri
+- Güvenli, idempotent demo seed ve standart hata/trace ID sözleşmesi
 
-Prepared sensör kayıtları, checksum doğrulamalı ve bounded-step
-[sensör replay altyapısıyla](docs/SENSOR_REPLAY.md) güvenli biçimde oynatılabilir.
+## Mimari
 
-## Proje durumu
+```text
+Sensör girdisi
+  → input-domain contract doğrulaması
+  → binary risk inference
+  → multi-label failure inference
+  → SHAP açıklaması
+  → TahminKaydi + immutable snapshot'lar
+  → legacy açıklama skorları + canonical 1–5 genel öncelik
+  → kullanıcı Onayla/Reddet kararı
+  → iş emri + canonical SLA
+  → ADMIN override → immutable audit olayı
+```
 
-Sprint 19B itibarıyla altyapı, kullanıcı/JWT akışı, merkezi hata sözleşmesi, hiyerarşik risk/fiziksel arıza tipi endpoint'i, SHAP açıklanabilirlik, versiyonlu bakım öncelik motoru, iş emri yaşam döngüsü, deterministik sensör replay altyapısı, premium ürün arayüzü, risk dashboard'u, hızlı sensör analizi, tahmin geçmişi, kalıcı değerlendirme ve ERP snapshot destekli bakım kararı detay ekranı uygulanmıştır.
+Model çıktısı risk ve fiziksel sinyallerdir. Canonical öncelik deterministik iş kuralı, onay/ret kullanıcı kararı, iş emri ise sürümlü operasyon aggregate'ıdır. Ayrıntılar [mimari belgesindedir](docs/ARCHITECTURE.md).
 
-## Kapsam
+## Teknoloji ve dizinler
 
-PDF'nin zorunlu kapsamı şunlardır:
+- Backend: Python 3.12, Django 5.2, Django REST Framework, PostgreSQL 17
+- Frontend: React 19, TypeScript 6, Vite 8, Vitest, ESLint
+- ML: pandas, NumPy, scikit-learn 1.8, joblib, SHAP
+- Çalıştırma: Docker Compose
 
-- USER ve ADMIN rolleriyle kullanıcı girişi,
-- öncelik sıralı risk listesi,
-- tahmin gerekçesi, önerilen aksiyon, gerekli parça ve stok bilgisini gösteren makine detay ekranı,
-- kullanıcı onayı ve ret akışı,
-- onaylanmış kayıtları gösteren iş emirleri ekranı,
-- makine/stok, tahmin logu ve kullanıcı yönetimi sunan admin ekranları,
-- demo verisini satır satır besleyen replay akışı,
-- ilk üç açıklama faktörünün mutlak SHAP etkisine göre gösterilmesi,
-- kullanıcı onayı olmadan iş emri oluşturulmaması.
+```text
+backend/          Django uygulaması, migration ve testler
+frontend/         React/TypeScript web uygulaması
+ml/               Feature, eğitim, inference ve ML test paketi
+data/metadata/    Sürümlü model/veri/input-domain metadata
+data/processed/   Git dışı prepared veri
+docs/             Aktif teknik ve tarihsel karar belgeleri
+compose.yaml      Geliştirme servisleri
+.env.example      Secret içermeyen environment şablonu
+```
 
-PDF'deki FastAPI, Streamlit, AI4I, Random Forest, 0.60 eşik değeri ve örnek minimum tablo alanları öneridir. Proje teknoloji kararı Django REST Framework, React/TypeScript ve PostgreSQL'dir. AI4I demo veri seti ve Random Forest ana model adayı olarak benimsenmiştir; nihai model ve eşik ölçüm sonuçlarıyla seçilecektir.
+## Kurulum ve hızlı başlangıç
 
-## Temel ürün kararları
+Önerilen yol Docker Desktop ve Docker Compose'dur. Host komutları için Python 3.12 ve Node.js **22.13+** gerekir; daha eski Node 22 sürümleri transit paket engine kontrolünü karşılamaz.
 
-- Genel öncelik; arıza riski, makine kritikliği ve stok katsayısına dayanır ve 1–5 arasında tam sayı olarak gösterilir.
-- Bakım önceliği ve tedarik önceliği, genel önceliği açıklayan yardımcı alt skorlardır.
-- Sistem yalnızca iş emri taslağı sunar; kullanıcı onayından önce iş emri oluşturmaz.
-- Onay ve ret kararları kullanıcı kimliği ve zamanıyla kaydedilir.
-- Gerçek ERP bağlantısı ilk sürüm kapsamında değildir. ERP'ye hazır iç veri modeli ve API tasarlanacaktır.
-- Kullanıcı kaydı self-service değildir; kullanıcıları ADMIN oluşturur.
-
-## Veri ve model özeti
-
-- Sentetik `machine_id` ve `timestamp` yalnız replay/demo amacıyla kullanılır; temporal model başarımı için kanıt değildir.
-- Sıcaklık farkı ve mekanik güç özellikleri türetilir.
-- Accuracy model seçiminde veya değerlendirmesinde kullanılmaz.
-- Precision, recall, F1, PR-AUC, confusion matrix, false positive ve false negative değerlendirilir.
-- Model joblib ile `.joblib` artefaktına kaydedilir ve uygulama çalışırken yeniden eğitilmez.
-- Mevcut joblib modelleri scikit-learn `1.8.0` ile üretilmiştir; eğitim ve serving
-  aynı exact sürüme sabitlenir. Sürüm yükseltmesi eski joblib ile yapılmaz: modeller
-  güvenilir veriyle yeniden eğitilir, test edilir ve yeni checksum/sürümle yayımlanır.
-
-## Belgeler
-
-- [Ürün gereksinimleri](docs/PRODUCT_REQUIREMENTS.md)
-- [Mimari](docs/ARCHITECTURE.md)
-- [Hiyerarşik tahmin akışı](docs/HIERARCHICAL_PREDICTION_FLOW.md)
-- [SHAP açıklanabilirlik altyapısı](docs/SHAP_EXPLAINABILITY.md)
-- [SHAP API entegrasyonu](docs/SHAP_API_INTEGRATION.md)
-- [Veri ve ML planı](docs/DATA_AND_ML_PLAN.md)
-- [Güvenlik planı](docs/SECURITY_PLAN.md)
-- [Hata sözleşmesi](docs/ERROR_CONTRACT.md)
-- [Terim sözlüğü](docs/TERIM_SOZLUGU.md)
-- [Mimari karar kayıtları](docs/decisions/)
-
-## Sprint 1: çalışan proje altyapısı
-
-Sprint 0 kararları korunarak Django REST Framework, React/TypeScript/Vite ve
-PostgreSQL için Docker Compose ile çalıştırılabilir geliştirme altyapısı eklendi.
-
-### Gereksinimler ve ortam hazırlığı
-
-Docker Desktop ile Docker Compose gereklidir. Depo kökünde örnek ortam dosyasını
-kopyalayın; değerler yalnız yerel geliştirme içindir ve gerçek ortamlarda
-değiştirilmelidir.
+Depo kökünde:
 
 ```powershell
 Copy-Item .env.example .env
-```
-
-Kalıcı ve denetlenebilir makine tahminlerinin create/list/detail, idempotency ve ERP
-snapshot sözleşmesi için [kalıcı tahmin kayıtları belgesine](docs/PREDICTION_RECORDS.md)
-bakın. Stateless `/api/tahminler/risk/` veritabanına kayıt yazmaz.
-
-### Docker ile başlatma
-
-```powershell
-docker compose up --build
-```
-
-Servis adresleri:
-
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- Sağlık kontrolü: http://localhost:8000/api/saglik/
-- PostgreSQL: yerel makinede `localhost:5432`, Docker ağında `db:5432`
-
-Migration çalıştırmak için:
-
-```powershell
+docker compose up --build -d
 docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py makemigrations --check --dry-run
-```
-
-## Sprint 3: kullanıcı yönetimi ve admin bootstrap
-
-Ürün rol politikaları, transaction'lı kullanıcı servisleri, selector'lar ve
-idempotent geliştirme/demo admin bootstrap komutu eklenmiştir. Ayrıntılar için
-[rol ve yetki matrisine](docs/ROLE_PERMISSION_MATRIX.md) bakın.
-
-İzlenmeyen `.env` dosyanızda aşağıdaki environment değişkenlerini tanımlayın:
-
-- `ADMIN_USERNAME` (zorunlu)
-- `ADMIN_PASSWORD` (zorunlu)
-- `ADMIN_EMAIL` (opsiyonel)
-
-İlk çalıştırma ve idempotent tekrar çalıştırma aynı komutla yapılır:
-
-```powershell
-docker compose exec backend python manage.py seed_admin
-```
-
-Mevcut bootstrap yöneticisinin parolasını bilinçli olarak yenilemek için:
-
-```powershell
-docker compose exec backend python manage.py seed_admin --update-password
-```
-
-Tekrar çalıştırma ikinci kullanıcı oluşturmaz ve `--update-password` verilmedikçe
-mevcut parolayı değiştirmez. Parolayı komut satırı argümanı, Git kapsamındaki bir
-dosya veya shell history içine yazmayın. Bu komut yalnız development/demo
-bootstrap içindir; production secret yönetimi değildir. Sprint 3 henüz login,
-JWT veya kullanıcı CRUD API endpoint'i içermez.
-
-## Sprint 4: güvenli authentication
-
-Authentication akışı `GET /api/auth/csrf/` ile başlar. Login kısa ömürlü access
-tokenı JSON gövdesinde, refresh tokenı ise JavaScript'in okuyamadığı HttpOnly
-cookie içinde döndürür. Refresh rotation eski tokenı blacklist eder; logout
-refresh tokenı blacklist edip cookie'yi siler. Ayrıntılı sequence ve tehdit
-sınırları için [authentication akışına](docs/AUTH_FLOW.md) bakın.
-
-Frontend access tokenı yalnız React/modül belleğinde tutar; localStorage,
-sessionStorage veya IndexedDB kullanılmaz. Sayfa yenilemesinde HttpOnly cookie ile
-refresh ve ardından `/me/` çağrısı yapılır. Development'ta cookie `Secure=False`,
-`SameSite=Lax`, `Path=/api/auth/` kullanır. Production HTTPS ortamında
-`JWT_REFRESH_COOKIE_SECURE=True` zorunludur.
-
-F12 Network panelinde access tokenın login/refresh response'unda bulunduğu, fakat
-refresh tokenın JSON'a girmediği doğrulanabilir. Application/Cookies panelinde
-refresh cookie HttpOnly görünmelidir. Token değerlerini console'a, loglara veya
-ekran görüntülerine taşımayın. Süresi dolmuş blacklist kayıtlarının bakımı:
-
-```powershell
-docker compose exec backend python manage.py flushexpiredtokens
-```
-
-## Sprint 5: hata ve takip kodu
-
-`/api/` hataları kararlı `hata.kod`, güvenli mesaj, alan hataları ve `trace_id`
-ile döner. Aynı kimlik `X-Trace-ID` header'ında ve yapılandırılmış request logunda
-bulunur. Kullanıcı beklenmeyen bir hata sürerse bu takip kodunu destek ekibine
-iletebilir. Ayrıntılar: [hata sözleşmesi](docs/ERROR_CONTRACT.md) ve
-[güvenli loglama](docs/OBSERVABILITY.md).
-
-## Sprint 6: bakım CRUD API'leri
-
-Makine, parça, güncel stok ve arıza–parça kuralları için JWT korumalı, sayfalı
-REST endpoint'leri eklendi. USER aktif kayıtları okuyabilir; yalnız ürün rolü ADMIN
-yazabilir ve pasif kayıtları görebilir. Endpoint, filtre ve hata ayrıntıları için
-[bakım API belgesine](docs/MAINTENANCE_API.md) bakın.
-
-## Sprint 7: AI4I veri hazırlama hattı
-
-Resmi UCI AI4I 2020 verisini doğrulayan, profilleyen ve deterministik demo alanlarıyla
-hazırlayan bağımsız `ml/` paketi eklendi. Ham ve işlenmiş CSV dosyaları Git dışındadır;
-ayrıntılar [veri profili](docs/DATASET_PROFILE.md) belgesindedir. Model henüz eğitilmez.
-
-```powershell
-python -m pip install -e ".\ml[dev]"
-$env:PYTHONPATH="ml/src"
-python ml/scripts/inspect_dataset.py
-python ml/scripts/prepare_dataset.py
-pytest ml/tests
-python -m ruff check ml
-python -m ruff format --check ml
-```
-
-Hazırlama çıktısı `data/processed/ai4i2020_prepared.csv`, güvenli metadata çıktısı
-`data/metadata/ai4i2020_prepared.json` konumundadır. Sentetik `machine_id` ve
-`timestamp` yalnız demo/replay içindir; gerçek makine veya temporal bilgi değildir.
-
-## Sprint 8: binary arıza modeli
-
-`Machine failure` hedefi için leakage-safe Logistic Regression ve Random Forest
-karşılaştırması, validation tabanlı threshold seçimi ve checksum doğrulamalı model
-artefaktı üretimi eklendi. Sonuçlar ve sınırlar [binary model raporundadır](docs/BINARY_MODEL_REPORT.md).
-
-```powershell
-$env:PYTHONPATH="ml/src"
-python ml/scripts/train_binary_model.py
-```
-
-Komut sürümlü artefaktı `ml/artifacts/` altında üretir; bu dizin Git dışındadır.
-İzlenebilir metrikler ve artefakt checksum'ı `data/metadata/binary_failure_model.json`
-dosyasına yazılır. Joblib artefaktı yalnız güvenilir yerel kaynaktan ve metadata'daki
-SHA-256 doğrulandıktan sonra yüklenmelidir.
-
-## Sprint 9: binary risk tahmin API'si
-
-JWT korumalı `POST /api/tahminler/risk/` endpoint'i kanonik sensör alanlarını
-doğrular, `bakim_ml` paketindeki ortak feature engineering kodunu kullanır ve
-metadata threshold'una göre risk uyarısı döndürür. Model ilk tahmin isteğinde
-checksum, sürüm, feature sırası ve sınıf sözleşmesi doğrulandıktan sonra bellekte
-önbelleğe alınır; uygulama çalışırken model eğitilmez. Ayrıntılar
-[tahmin API belgesindedir](docs/PREDICTION_API.md).
-
-Gerçek `.joblib` dosyası pickle tabanlı güvenlik ve boyut nedenleriyle Git'e
-alınmaz. Yerel AI4I verisi hazırlandıktan sonra güvenilir artefaktı üretmek için:
-
-```powershell
-$env:PYTHONPATH="ml/src"
-python ml/scripts/train_binary_model.py
-```
-
-Docker Compose, `ml/` dizinini salt okunur bağlar. Model dosyası yoksa backend ve
-sağlık endpoint'i çalışmaya devam eder; yalnız tahmin endpoint'i standart `503`
-döndürür. Sprint 9 kontrolleri:
-
-```powershell
-docker compose build backend
-docker compose up -d db backend
 docker compose exec backend python manage.py check
-docker compose exec backend python manage.py makemigrations --check --dry-run
-docker compose exec backend pytest
-docker compose exec backend ruff check .
-docker compose exec backend ruff format --check .
 ```
 
-## Sprint 10: arıza tipi etiket analizi
-
-AI4I arıza tipi etiketlerinin multi-label yapısını, RNF tutarsızlığını ve
-mevcut binary split içindeki dağılımı tekrarlanabilir biçimde analiz etmek için:
-
-```powershell
-$env:PYTHONPATH="ml/src"
-python ml/scripts/analyze_failure_labels.py
-```
-
-Sonuçlar [arıza tipi etiket analizi](docs/FAILURE_LABEL_ANALYSIS.md) belgesinde ve
-`data/metadata/failure_label_analysis.json` metadata dosyasında yer alır. Bu
-sprint model eğitmez veya mevcut tahmin API'sini değiştirmez.
-
-## Sprint 11: fiziksel arıza tipi modeli
-
-TWF, HDF, PWF ve OSF için dört bağımsız pipeline'dan oluşan multi-label
-modeli çevrimdışı eğitmek için:
-
-```powershell
-$env:PYTHONPATH="ml/src"
-python ml/scripts/train_failure_type_model.py
-```
-
-Deney ayrıntıları [failure-type model raporunda](docs/FAILURE_TYPE_MODEL_REPORT.md),
-kullanım sınırları [model kartında](docs/MODEL_CARD_FAILURE_TYPE.md) yer alır.
-`ml/artifacts/failure-type-1.0.0.joblib` pickle tabanlı olduğu için Git dışında
-tutulur; uygulama çalışırken eğitim yapılmaz.
-
-## Sprint 12: hiyerarşik tahmin API'si
-
-Mevcut `POST /api/tahminler/risk/` endpoint'i önce binary riski hesaplar ve yalnız
-risk threshold'u aşıldığında fiziksel arıza tipi modelini çalıştırır. HDF/PWF/OSF
-operasyonel aday, TWF yetersiz destekli deneysel sinyal, RNF ise model dışıdır.
-İki artefakt ayrı checksum doğrulaması ve lazy cache kullanır. Ayrıntılar
-[hiyerarşik tahmin akışında](docs/HIERARCHICAL_PREDICTION_FLOW.md) ve
-[API sözleşmesinde](docs/PREDICTION_API.md) yer alır.
-
-## Sprint 13: doğrulanmış SHAP açıklamaları
-
-Binary risk ve dört fiziksel arıza tipi pipeline'ı için pozitif sınıfı açıklayan,
-SHAP sürüm shape'lerini normalize eden ve tam katkı vektöründe additivity
-doğrulayan ortak ML katmanı eklendi. Validation örneğinden deterministik ve yalnız
-toplulaştırılmış global önem raporu üretilebilir. Django/API entegrasyonu Sprint 14
-kapsamındadır; ayrıntılar [SHAP açıklanabilirlik belgesindedir](docs/SHAP_EXPLAINABILITY.md).
-
-### Test ve kalite kontrolleri
-
-```powershell
-docker compose exec backend pytest
-docker compose exec backend ruff check .
-docker compose exec backend ruff format --check .
-docker compose exec frontend npm test -- --run
-docker compose exec frontend npm run lint
-docker compose exec frontend npm run build
-```
-
-Logları izlemek ve servisleri durdurmak için:
+`.env` Git'e eklenmemeli; placeholder secret ve parolalar güçlü, ortama özgü değerlerle değiştirilmelidir. Frontend <http://localhost:5173>, backend <http://localhost:8000>, sağlık endpoint'i <http://localhost:8000/api/saglik/> adresindedir.
 
 ```powershell
 docker compose logs -f
 docker compose down
 ```
 
-`docker compose down -v` PostgreSQL verisini kalıcı olarak siler; yalnız veriyi
-bilerek sıfırlamak istediğinizde kullanın.
+`docker compose down -v` veritabanı volume'unu kalıcı siler; normal durdurma komutu değildir. Windows/OneDrive altında mount değişiklikleri görünmezse Docker Desktop dosya paylaşım izinlerini kontrol edin.
 
-Windows/OneDrive altında dosya değişiklikleri algılanmazsa Docker Desktop dosya
-paylaşım izinlerini kontrol edin. Gerekirse Vite polling ayarı ayrıca açılabilir;
-varsayılan yapı gereksiz polling kullanmaz.
+## Model ve veri artefaktları
 
-### Henüz uygulanmayan özellikler
+Ham/prepared CSV ve `.joblib` dosyaları Git dışında tutulur ve Compose tarafından salt okunur bağlanır. Model metadata'sındaki SHA-256, runtime sürümü, feature sırası ve sınıf sözleşmesi doğrulanmadan joblib yüklenmez. Artefakt yoksa sağlık endpoint'i çalışır; inference standart `503` döndürür. Eğitim uygulama başlangıcının parçası değildir.
 
-SHAP, tahmin kaydı, replay, risk dashboard'u, öncelik motoru,
-karar/iş emri ve ERP entegrasyonu sonraki sprintlerin kapsamındadır.
+Güvenilir yerel veriden yeniden üretim, depo kökünde:
 
-## Sprint 2: temel veri modeli
+```powershell
+$env:PYTHONPATH="ml/src"
+python ml/scripts/prepare_dataset.py
+python ml/scripts/train_binary_model.py
+python ml/scripts/train_failure_type_model.py
+python ml/scripts/generate_input_domain_contract.py
+```
 
-Özel `Kullanici` modeli ile makine, parça, güncel stok ve arıza–parça kuralı
-modelleri eklenmiştir. Şema, ilişkiler, constraint ve index gerekçeleri için
-[Sprint 2 ER diyagramına](docs/ER_DIAGRAM.md) bakın. Ürün rolü (`USER`/`ADMIN`)
-Django'nun `is_staff` ve `is_superuser` yetkilerinden bağımsızdır.
+## Demo seed
 
-Migration durumunu doğrulamak için:
+İzlenmeyen `.env` içinde `DEMO_ADMIN_USERNAME`, `DEMO_ADMIN_PASSWORD`, `DEMO_USER_USERNAME` ve `DEMO_USER_PASSWORD` zorunludur. Parolalar Django validator'larını geçmelidir. `DEBUG=False` ortamında ayrıca bilinçli `ALLOW_DEMO_SEED_IN_PRODUCTION=True` opt-in gerekir.
+
+Depo kökünde, backend container'ında:
 
 ```powershell
 docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py showmigrations
+docker compose exec backend python manage.py seed_demo
+```
+
+Komut idempotenttir, environment parolası değişirse canonical demo hesabının hashini günceller ve raw parola/hash yazdırmaz. Doğrulanmış seed 9 makine, 10 tahmin (5 bekleyen, 4 onaylanan, 1 reddedilen), 4 iş emri ve HAZIR durumda 250 gerçek replay öğesi üretir. Sunum akışı: [DEMO_SCENARIO](docs/DEMO_SCENARIO.md).
+
+## Test, lint ve build
+
+Backend — depo kökünden, container içinde:
+
+```powershell
+docker compose exec backend pytest
+docker compose exec backend ruff check .
+docker compose exec backend ruff format --check .
+docker compose exec backend python -m compileall -q apps config
+docker compose exec backend python manage.py check
 docker compose exec backend python manage.py makemigrations --check --dry-run
 ```
+
+Frontend — host üzerinde `frontend/` dizininde:
+
+```powershell
+npm ci
+npm test -- --run
+npm run lint
+npm run build
+```
+
+ML — host üzerinde depo kökünde:
+
+```powershell
+$env:PYTHONPATH="ml/src"
+python -m pytest ml/tests
+```
+
+Son doğrulanan sonuçlar [FINAL_VERIFICATION](docs/FINAL_VERIFICATION.md) belgesindedir.
+
+## Kullanıcı akışları ve yetkilendirme
+
+- USER: giriş, makine lookup, Hızlı Analiz, tahmin geçmişi/detayı, izinli Onayla/Reddet ve iş emri operasyonları.
+- ADMIN: USER yetkilerine ek olarak makine/parça/stok/kullanıcı CRUD, Tahmin Logları, replay mutation, atama, iptal ve priority override.
+- `/api/makine-secenekleri/` aktif makine lookup'ıdır; admin CRUD endpoint'i değildir.
+- Frontend `AdminRoute` yalnız UX korumasıdır; authoritative kontrol backend permission sınıflarındadır.
+
+## ML değerlendirme yaklaşımı
+
+Binary aday seçimi validation PR-AUC ile yapılır; threshold validation setinde seçilir ve test split yalnız final değerlendirmede kullanılır. Güncel threshold metadata'dan okunur (`0.22958333333333336`). Risk skoru kalibre edilmiş olasılık olarak sunulmaz. Ana replay metrikleri Precision, Recall, PR-AUC ve Confusion Matrix; F1 yardımcı metriktir. Multi-label `subset_accuracy` yalnız ayrı diagnostic olabilir ve binary replay metriği değildir.
+
+SHAP, binary risk modelinin ve çalıştırılan fiziksel failure-type modellerinin pozitif sınıf çıktısını açıklar; nedensellik veya garanti değildir. RNF inference hedefi değil, yalnız ground truth politikasıdır.
+
+## Canonical genel öncelik ve SLA
+
+Sürüm `general-priority-1.0.0`:
+
+```text
+stok_katsayisi = 1 + tedarik_riski_skoru / 100
+ham_genel_oncelik = risk_orani × makine_kritikligi × stok_katsayisi
+```
+
+Decimal/ROUND_HALF_UP ile quantize edilen ham değer 0–2→1, >2–4→2, >4–6→3, >6–8→4, >8–10→5 aralıklarına dönüştürülür. Legacy 0–100 skorlar yalnız açıklama/uyumluluk içindir; eski kayıtlar nullable canonical alanlarla gösterilir ve otomatik backfill yapılmaz.
+
+İş emri kaynak önceliği immutable kalır; etkin öncelik ADMIN override ile değişebilir. `general-priority-sla-1.0.0`: 1→168, 2→120, 3→72, 4→24, 5→4 saat.
+
+## Replay
+
+Replay checksum doğrulamalı prepared AI4I test split'inden en fazla 1000 öğe oluşturur; demo seed 250 gerçek öğe seçer ve oturumu `HAZIR` bırakır. Kullanıcı başlatır; adımlar production tahmin servisini çağırır ve başarılı öğeleri `TahminKaydi` ile bağlar. Final metrik yalnız `TAMAMLANDI` oturumun başarılı öğelerinden hesaplanır. PR-AUC risk skorlarından hesaplanır; tek sınıflı durumda unavailable uyarısı döner. Binary replay response'unda Accuracy yoktur ve sahte tamamlanmış replay/metrik üretilmez.
+
+## Input-domain ve sıcaklık birimleri
+
+Hızlı Analiz UI Celsius kabul eder ve `K = °C + 273.15` ile dönüştürür. Backend API, entegrasyon ve replay canonical olarak Kelvin kullanır. Sürüm kontrollü contract training split istatistiklerinden üretilir; fiziksel, supported ve observed sınırları ayırır. SHA-256 ve feature-order uyuşmazlığı fail-fast sonuçlanır; hardcoded fallback yoktur. Ayrıntılar: [INPUT_DOMAIN](docs/INPUT_DOMAIN.md).
+
+## Authentication, parola ve hata sözleşmesi
+
+Django `UserAttributeSimilarity`, `MinimumLength`, `CommonPassword` ve `NumericPassword` validator'ları kullanıcı create/reset akışlarında authoritative kaynaktır. Parolalar yalnız `set_password()` ile hashlenir; raw değer response/loglara girmez. Access token frontend belleğinde, refresh token HttpOnly cookie'dedir. Gerçek secret, credential, ham veri ve model artefaktları repository'ye yazılmamalıdır.
+
+```json
+{
+  "hata": {
+    "kod": "DOGRULAMA_HATASI",
+    "mesaj": "Gönderilen bilgilerde doğrulama hataları var.",
+    "alanlar": {"alan": ["Kullanıcı dostu hata."]},
+    "trace_id": "istemci-ve-log-ile-eslesen-kimlik"
+  }
+}
+```
+
+Validation `400`, auth `401`, permission `403`, bulunamayan kaynak `404`, conflict `409`, model/config unavailable `503` döner. Teknik exception ve stack trace sızdırılmaz.
+
+## Bilinen sınırlamalar
+
+- AI4I kimlik/zaman alanları sentetiktir; gerçek ekipman veya temporal genelleme kanıtı değildir.
+- Gerçek ERP, MQTT/Kafka broker, background worker, bildirim, stok rezervasyonu ve satın alma entegrasyonu yoktur.
+- Replay gerçek zamanlı IoT akışı değil, kontrollü HTTP batch simülasyonudur.
+- Risk skoru kalibrasyon kanıtı olmayan model skorudur.
+- TWF deneysel/yetersiz destekli sinyaldir; production deployment ve Sprint 21 bu teslim kapsamında değildir.
+
+## Aktif belgeler
+
+API sözleşmesi ve authenticated Swagger kullanımı için [OpenAPI dokümanı](docs/API_OPENAPI.md), izole browser teslim testleri için [E2E test dokümanı](docs/E2E_TESTING.md) kullanılır.
+
+- [Ürün gereksinimleri](docs/PRODUCT_REQUIREMENTS.md)
+- [Mimari](docs/ARCHITECTURE.md)
+- [Bakım öncelik motoru](docs/MAINTENANCE_PRIORITY_ENGINE.md)
+- [İş emri yaşam döngüsü](docs/WORK_ORDER_WORKFLOW.md)
+- [Sensör replay](docs/SENSOR_REPLAY.md)
+- [Input-domain sözleşmesi](docs/INPUT_DOMAIN.md)
+- [Binary model kartı](docs/MODEL_CARD_BINARY_FAILURE.md)
+- [Failure-type model kartı](docs/MODEL_CARD_FAILURE_TYPE.md)
+- [Tahmin API](docs/PREDICTION_API.md)
+- [Bakım API](docs/MAINTENANCE_API.md)
+- [Authentication](docs/AUTH_FLOW.md)
+- [Rol ve yetki matrisi](docs/ROLE_PERMISSION_MATRIX.md)
+- [Güvenlik](docs/SECURITY_PLAN.md)
+- [Hata sözleşmesi](docs/ERROR_CONTRACT.md)
+- [Demo senaryosu](docs/DEMO_SCENARIO.md)
+- [Final doğrulama](docs/FINAL_VERIFICATION.md)
+- [Accessibility denetimi](docs/ACCESSIBILITY.md)
+- [Security denetimi](docs/SECURITY_AUDIT.md)
+- [Performance baz çizgisi](docs/PERFORMANCE_BASELINE.md)
+- [Production deployment](docs/PRODUCTION_DEPLOYMENT.md)
+- [Backup/restore](docs/BACKUP_RESTORE.md)
+- [Final runbook](docs/FINAL_RUNBOOK.md)
+
+`docs/decisions/` altındaki ADR'ler ve eski sprint bağlamı taşıyan analiz/raporlar tarihsel karar kanıtıdır; güncel çalışma davranışı için bu README ve aktif sözleşmeler esas alınır.

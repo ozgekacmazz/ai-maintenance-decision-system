@@ -25,6 +25,11 @@ urlpatterns = [
         name="is-emri-oncelik-override",
     ),
     path("makineler/", views.MakineListe.as_view(), name="makine-listesi"),
+    path(
+        "makine-secenekleri/",
+        views.MakineSecenekleri.as_view(),
+        name="makine-secenekleri",
+    ),
     path("makineler/<int:pk>/", views.MakineDetay.as_view(), name="makine-detayi"),
     path(
         "makineler/<int:pk>/aktiflik/",

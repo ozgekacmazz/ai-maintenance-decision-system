@@ -1,4 +1,4 @@
-from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.utils import timezone
 
 from apps.bakim.models import BakimIsEmri
@@ -9,11 +9,12 @@ def is_emri_listesi(*, filtreler, now=None):
     now = now or timezone.now()
     queryset = BakimIsEmri.objects.select_related(
         "makine", "olusturan", "atanan_kullanici", "tahmin_kaydi"
-    )
+    ).prefetch_related("tahmin_kaydi__erp_snapshotlari")
     mapping = {
         "durum": "durum",
         "etkin_oncelik_seviyesi": "etkin_oncelik_seviyesi",
         "kaynak_oncelik_seviyesi": "kaynak_oncelik_seviyesi",
+        "genel_oncelik": "etkin_genel_oncelik",
         "makine_id": "makine_id",
         "atanan_kullanici_id": "atanan_kullanici_id",
         "olusturan_id": "olusturan_id",
@@ -75,6 +76,18 @@ def is_emri_listesi(*, filtreler, now=None):
         "-durum": "-durum",
     }
     if "sirala" in filtreler:
+        if filtreler["sirala"] in {
+            "etkin_genel_oncelik",
+            "-etkin_genel_oncelik",
+        }:
+            descending = filtreler["sirala"].startswith("-")
+            priority = F("etkin_genel_oncelik")
+            return queryset.order_by(
+                priority.desc(nulls_last=True)
+                if descending
+                else priority.asc(nulls_last=True),
+                "id",
+            )
         return queryset.order_by(ordering[filtreler["sirala"]], "id")
     return queryset.order_by(
         "terminal_sirasi",

@@ -21,6 +21,13 @@ class MakineOkumaSerializer(serializers.Serializer):
     guncellenme_zamani = serializers.DateTimeField(source="guncellenme_tarihi")
 
 
+class MakineSecenegiSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    kod = serializers.CharField(source="makine_kodu")
+    ad = serializers.CharField()
+    aktif = serializers.BooleanField()
+
+
 class MakineYazmaSerializer(serializers.Serializer):
     kod = serializers.CharField(source="makine_kodu", max_length=50, validators=[])
     ad = serializers.CharField(max_length=150)

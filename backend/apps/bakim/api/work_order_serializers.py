@@ -83,13 +83,45 @@ class IsEmriDurumGecisiSerializer(StrictSerializer):
         return attrs
 
 
+class GenelOncelikField(serializers.IntegerField):
+    default_error_messages = {
+        "invalid": "1 ile 5 arasında bir tam sayı olmalıdır.",
+    }
+
+    def to_internal_value(self, data):
+        if type(data) is not int:
+            self.fail("invalid")
+        return super().to_internal_value(data)
+
+
 class IsEmriOncelikOverrideSerializer(StrictSerializer):
     beklenen_version = serializers.IntegerField(min_value=1)
     etkin_oncelik_seviyesi = serializers.ChoiceField(
-        choices=("DUSUK", "ORTA", "YUKSEK", "KRITIK")
+        required=False, choices=("DUSUK", "ORTA", "YUKSEK", "KRITIK")
     )
+    genel_oncelik = GenelOncelikField(required=False, min_value=1, max_value=5)
     override_nedeni = serializers.CharField(max_length=500)
     validate_override_nedeni = staticmethod(_text)
+
+    def validate(self, attrs):
+        supplied = {
+            field
+            for field in ("etkin_oncelik_seviyesi", "genel_oncelik")
+            if field in attrs
+        }
+        if not supplied:
+            raise serializers.ValidationError(
+                {"genel_oncelik": ["Bir öncelik alanı gönderilmelidir."]}
+            )
+        if len(supplied) > 1:
+            raise serializers.ValidationError(
+                {
+                    "genel_oncelik": [
+                        "Genel ve legacy öncelik alanları birlikte gönderilemez."
+                    ]
+                }
+            )
+        return attrs
 
 
 class IsEmriFiltreSerializer(StrictSerializer):
@@ -100,6 +132,7 @@ class IsEmriFiltreSerializer(StrictSerializer):
     kaynak_oncelik_seviyesi = serializers.ChoiceField(
         required=False, choices=("DUSUK", "ORTA", "YUKSEK", "KRITIK")
     )
+    genel_oncelik = GenelOncelikField(required=False, min_value=1, max_value=5)
     makine_id = serializers.IntegerField(required=False, min_value=1)
     atanan_kullanici_id = serializers.IntegerField(required=False, min_value=1)
     olusturan_id = serializers.IntegerField(required=False, min_value=1)
@@ -118,6 +151,8 @@ class IsEmriFiltreSerializer(StrictSerializer):
         choices=(
             "etkin_oncelik",
             "-etkin_oncelik",
+            "etkin_genel_oncelik",
+            "-etkin_genel_oncelik",
             "hedef_mudahale_zamani",
             "-hedef_mudahale_zamani",
             "olusturulma_zamani",
@@ -159,6 +194,8 @@ class IsEmriListeSerializer(serializers.ModelSerializer):
     atanan_kullanici = KullaniciOzetiSerializer(allow_null=True)
     gecikmis = serializers.SerializerMethodField()
     olcum_zamani = serializers.DateTimeField(source="tahmin_kaydi.olcum_zamani")
+    ana_aksiyon = serializers.SerializerMethodField()
+    erp_ozeti = serializers.SerializerMethodField()
 
     class Meta:
         model = BakimIsEmri
@@ -166,9 +203,14 @@ class IsEmriListeSerializer(serializers.ModelSerializer):
             "id",
             "is_emri_numarasi",
             "makine",
+            "ana_aksiyon",
+            "erp_ozeti",
             "durum",
             "etkin_oncelik_seviyesi",
             "kaynak_oncelik_seviyesi",
+            "kaynak_genel_oncelik",
+            "kaynak_genel_oncelik_formul_surumu",
+            "etkin_genel_oncelik",
             "atanan_kullanici",
             "hedef_mudahale_zamani",
             "gecikmis",
@@ -185,6 +227,9 @@ class IsEmriListeSerializer(serializers.ModelSerializer):
             "ad": obj.tahmin_kaydi.makine_adi_snapshot,
         }
 
+    def get_ana_aksiyon(self, obj):
+        return obj.kaynak_ana_aksiyon or None
+
     def get_gecikmis(self, obj):
         return gecikmis_mi(
             durum=obj.durum,
@@ -192,11 +237,22 @@ class IsEmriListeSerializer(serializers.ModelSerializer):
             simdi=self.context.get("now", timezone.now()),
         )
 
+    def get_erp_ozeti(self, obj):
+        return [
+            {
+                "parca_kodu": x.parca_kodu_snapshot,
+                "parca_adi": x.parca_adi_snapshot,
+                "stok_durumu": x.stok_durumu,
+                "stok_yeterli": x.stok_yeterli,
+                "gerekli_miktar": x.gerekli_miktar,
+            }
+            for x in obj.tahmin_kaydi.erp_snapshotlari.all()
+        ]
+
 
 class IsEmriDetaySerializer(IsEmriListeSerializer):
     olaylar = IsEmriOlaySerializer(many=True)
     kaynak_karar = serializers.SerializerMethodField()
-    erp_ozeti = serializers.SerializerMethodField()
     tekrarlandi = serializers.SerializerMethodField()
 
     class Meta(IsEmriListeSerializer.Meta):
@@ -215,7 +271,6 @@ class IsEmriDetaySerializer(IsEmriListeSerializer):
             "tamamlama_notu",
             "iptal_nedeni",
             "bekleme_nedeni",
-            "erp_ozeti",
             "olaylar",
             "guncellenme_zamani",
             "tekrarlandi",
@@ -232,18 +287,6 @@ class IsEmriDetaySerializer(IsEmriListeSerializer):
             "karar_guveni": obj.kaynak_karar_guveni,
             "ana_ariza_tipi": obj.kaynak_ana_ariza_tipi,
         }
-
-    def get_erp_ozeti(self, obj):
-        return [
-            {
-                "parca_kodu": x.parca_kodu_snapshot,
-                "parca_adi": x.parca_adi_snapshot,
-                "stok_durumu": x.stok_durumu,
-                "stok_yeterli": x.stok_yeterli,
-                "gerekli_miktar": x.gerekli_miktar,
-            }
-            for x in obj.tahmin_kaydi.erp_snapshotlari.all()
-        ]
 
     def get_tekrarlandi(self, obj):
         return self.context.get("tekrarlandi", False)

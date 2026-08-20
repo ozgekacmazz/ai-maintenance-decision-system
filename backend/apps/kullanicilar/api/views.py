@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.middleware.csrf import get_token
+from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -11,7 +12,14 @@ from rest_framework.views import APIView
 
 from apps.core.exceptions import KimlikDogrulamaApiHatasi
 from apps.kullanicilar.api.permissions import UrunAdminiMi
-from apps.kullanicilar.api.serializers import GirisSerializer, KullaniciOzetiSerializer
+from apps.kullanicilar.api.serializers import (
+    GirisSerializer,
+    KullaniciGuncellemeSerializer,
+    KullaniciOlusturmaSerializer,
+    KullaniciOzetiSerializer,
+    KullaniciYonetimSerializer,
+    SifreGuncellemeSerializer,
+)
 from apps.kullanicilar.auth_services import (
     KimlikDogrulamaHatasi,
     giris_yap,
@@ -19,6 +27,7 @@ from apps.kullanicilar.auth_services import (
     refresh_token_yenile,
 )
 from apps.kullanicilar.cookies import refresh_cookie_ayarla, refresh_cookie_sil
+from apps.kullanicilar.models import Kullanici
 
 
 def _kullanici_ozeti(kullanici, *, email=False):
@@ -100,3 +109,46 @@ class AdminKontrolView(APIView):
 
     def get(self, request):
         return Response({"durum": "izinli", "rol": request.user.rol})
+
+
+class AdminKullaniciListesi(APIView):
+    permission_classes = [IsAuthenticated, UrunAdminiMi]
+
+    def get(self, request):
+        kullanicilar = Kullanici.objects.all().order_by("-date_joined")
+        return Response(KullaniciYonetimSerializer(kullanicilar, many=True).data)
+
+    def post(self, request):
+        serializer = KullaniciOlusturmaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(
+            KullaniciYonetimSerializer(user).data, status=status.HTTP_201_CREATED
+        )
+
+
+class AdminKullaniciDetayi(APIView):
+    permission_classes = [IsAuthenticated, UrunAdminiMi]
+
+    def patch(self, request, pk):
+        user = get_object_or_404(Kullanici, pk=pk)
+        serializer = KullaniciGuncellemeSerializer(
+            user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(KullaniciYonetimSerializer(user).data)
+
+
+class AdminKullaniciSifreSifirla(APIView):
+    permission_classes = [IsAuthenticated, UrunAdminiMi]
+
+    def post(self, request, pk):
+        user = get_object_or_404(Kullanici, pk=pk)
+        serializer = SifreGuncellemeSerializer(
+            data=request.data, context={"kullanici": user}
+        )
+        serializer.is_valid(raise_exception=True)
+        user.set_password(serializer.validated_data["yeni_sifre"])
+        user.save()
+        return Response({"mesaj": "Parola başarıyla güncellendi."})

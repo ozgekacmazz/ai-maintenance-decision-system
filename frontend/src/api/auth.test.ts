@@ -16,6 +16,28 @@ describe('kimlikliIstek', () => {
     expect(headers.get('Authorization')).toBe('Bearer memory-token')
   })
 
+  it('string body gönderildiğinde otomatik Content-Type application/json ekler', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'))
+    await kimlikliIstek('/api/tahminler/replay-oturumlari/id/baslat/', {
+      method: 'POST',
+      body: JSON.stringify({ beklenen_version: 1 }),
+    })
+    const headers = fetchMock.mock.calls[0][1]?.headers as Headers
+    expect(headers.get('Content-Type')).toBe('application/json')
+  })
+
+  it('FormData gibi non-string body gönderildiğinde Content-Type eklemez', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'))
+    const formData = new FormData()
+    formData.append('file', 'test')
+    await kimlikliIstek('/api/upload/', {
+      method: 'POST',
+      body: formData,
+    })
+    const headers = fetchMock.mock.calls[0][1]?.headers as Headers
+    expect(headers.has('Content-Type')).toBe(false)
+  })
+
   it('401 sonrası bir refresh ve bir retry yapar', async () => {
     accessTokeniAyarla('eski')
     const fetchMock = vi.spyOn(globalThis, 'fetch')
