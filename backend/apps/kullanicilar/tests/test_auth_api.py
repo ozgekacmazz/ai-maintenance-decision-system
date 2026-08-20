@@ -180,3 +180,21 @@ def test_admin_kontrol_server_side_rol_kullanir(rol, is_staff, is_superuser, bek
 
 def test_admin_kontrol_tokensiz_401():
     assert APIClient().get("/api/auth/admin-kontrol/").status_code == 401
+
+
+@pytest.mark.parametrize("payload", [{"is_active": False}, {"rol": "USER"}])
+def test_admin_kendi_hesabini_pasife_alip_rolunu_dusuremez(payload):
+    admin = Kullanici.objects.create_user(
+        username="self-protected-admin", password=PAROLA, rol=Kullanici.Rol.ADMIN
+    )
+    client = APIClient()
+    client.force_authenticate(admin)
+
+    response = client.patch(
+        f"/api/auth/kullanicilar/{admin.pk}/", payload, format="json"
+    )
+
+    assert response.status_code == 400
+    admin.refresh_from_db()
+    assert admin.is_active is True
+    assert admin.rol == Kullanici.Rol.ADMIN

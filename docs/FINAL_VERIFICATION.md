@@ -35,7 +35,7 @@ Backend ve seed doğrulaması production/dev veritabanından ayrı geçici Postg
 - Yerel Node 22.12.0, bir transit paketin istediği 22.13 minimumunun altındadır ve `npm ci` engine uyarısı üretmiştir. Kurulum/test/lint/build başarılıdır; dokümante edilen minimum 22.13+'tır.
 - Git line-ending ayarı bazı dosyalar için ileride LF→CRLF dönüşüm uyarısı üretmektedir; `git diff --check` temizdir.
 
-Son doğrulama anında açık başarısız veya atlanmış test borcu yoktur. Sprint 21 uygulanmamıştır ve bu kaydın kapsamında değildir.
+Yukarıdaki paragraf Sprint 20R'nin tarihsel kaydıdır. Güncel Sprint 21 sonucu aşağıdaki ayrı kayıtta tutulur; eski test sayıları güncel doğrulama olarak kullanılmaz.
 # Sprint 21C final production verification — 20 August 2026
 
 - Two clean multi-stage production builds completed successfully.
@@ -47,6 +47,9 @@ Son doğrulama anında açık başarısız veya atlanmış test borcu yoktur. Sp
 - Custom-format backup restored into an isolated empty DB with counts `10/4/1/250/5`; the restore DB and temporary dump were removed.
 - Clean working-tree snapshot excluded `.git`, caches, env files and the ambiguous test `__init__.py` change; its separate build and zero-DB smoke passed, then only exact snapshot resources were removed.
 - Production-smoke Playwright: headers/CSP/ADMIN/USER/rate-limit 2/2; two consecutive real journeys 16.7 s and 16.6 s; real replay 66 s and 53.1 s. Human narration was not performed; the documented 8–12 minute timed plan combines these click paths with allocated narration.
-- Regression: backend 534/534; ML 83/83; frontend 99/99 plus lint/build; contract 4/4; axe 4/4; production smoke 2/2.
+- Final regression: backend 536/536; ML 83/83; frontend 99/99 plus lint/build; Playwright contract 4/4; axe 4/4; production smoke 2/2.
 - Deploy check warnings are intentionally limited to HSTS include-subdomains and preload opt-ins because the real TLS/domain topology is not supplied. No check is silenced.
-- The remaining delivery gate is a real remote clone after Sprint 21 commit/push; it cannot validate the current uncommitted working tree.
+- The four earlier Playwright contract failures were caused only by missing temporary `E2E_USER_PASSWORD` and `E2E_ADMIN_PASSWORD` environment variables. No test or application-code change was required for that cause; the isolated rerun passed 4/4.
+- The final real-user journey passed 1/1 in 15.9 seconds, covering rejection, approval, work-order creation, admin logs and canonical priority override.
+- `seed_demo` was run twice after migrations in a clean isolated `sensor_e2e` database with temporary credentials. Both runs retained 9 demo machines, 8 demo parts, 9 failure-part rules, 10 demo predictions, 1 replay session, 250 replay items and 4 demo work orders. No duplicate was created; every demo machine had a populated `tip`, and all failure-part mappings matched the intended demo-only sets.
+- Final acceptance is complete: the double-seed idempotency check passed and no real defect or blocker remains.

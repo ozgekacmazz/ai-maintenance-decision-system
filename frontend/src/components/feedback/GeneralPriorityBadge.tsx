@@ -28,7 +28,7 @@ export function GeneralPriorityBadge({ genelOncelik, legacyOncelik }: GeneralPri
   return (
     <span
       className="rozet"
-      title="Risk × makine kritikliÄŸi × stok katsayÄ±sÄ±"
+      title="Risk × makine kritikliği × stok katsayısı"
       style={{ background: style.background, color: style.color, border: `1px solid ${style.border}` }}
     >
       Öncelik {genelOncelik}/5

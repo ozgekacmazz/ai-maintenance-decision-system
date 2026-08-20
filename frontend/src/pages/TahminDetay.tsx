@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -36,6 +36,7 @@ import { MetricCard } from '../components/data-display/MetricCard'
 import { useAccessibleDialog } from '../components/accessibility/useAccessibleDialog'
 import { LoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 import { ErrorState } from '../components/feedback/ErrorState'
+import { kelvinToCelsius } from '../utils/temperature'
 
 export function TahminDetay() {
   const { tahminId } = useParams<{ tahminId: string }>()
@@ -118,10 +119,8 @@ export function TahminDetay() {
     }
   }
 
-  useEffect(() => {
-    if (!tahminId) return
-
-    const veriGetir = async () => {
+  const veriGetir = useCallback(async () => {
+      if (!tahminId) return
       setYukleniyor(true)
       setHata(null)
       setDurumKodu(null)
@@ -142,10 +141,12 @@ export function TahminDetay() {
       } finally {
         setYukleniyor(false)
       }
-    }
+    }, [tahminId])
 
-    void veriGetir()
-  }, [tahminId])
+  useEffect(() => {
+    const timer = window.setTimeout(() => void veriGetir(), 0)
+    return () => window.clearTimeout(timer)
+  }, [veriGetir])
 
   if (yukleniyor) {
     return (
@@ -205,9 +206,7 @@ export function TahminDetay() {
         <ErrorState
           mesaj={hata ?? 'Kayıt detayları yüklenemedi.'}
           traceId={traceId}
-          onRetry={() => {
-            if (tahminId) void tahminKaydiDetayiGetir(tahminId).then(setKayit)
-          }}
+          onRetry={() => void veriGetir()}
         />
       </div>
     )
@@ -301,7 +300,7 @@ export function TahminDetay() {
               <strong>Genel Öncelik Hesabı</strong>
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
                 <span>Risk oranı: %{Math.round(kayit.tahmin.risk_orani * 100)}</span>
-                <span>Makine kritikliÄŸi: {kayit.makine.kritiklik_snapshot}/5</span>
+                <span>Makine kritikliği: {kayit.makine.kritiklik_snapshot}/5</span>
                 <span>Stok katsayısı: {bakim_karari.stok_katsayisi}</span>
                 <span>Ham sonuç: {bakim_karari.ham_genel_oncelik}</span>
                 <span>Genel öncelik: {bakim_karari.genel_oncelik}/5</span>
@@ -439,7 +438,7 @@ export function TahminDetay() {
       <div className="dashboard-panel" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Cpu size={20} color="var(--primary)" />
-          <h3 style={{ margin: 0 }}>Ölçeğin Alındığı Anki Sensör Değerleri</h3>
+          <h3 style={{ margin: 0 }}>Ölçümün Alındığı Anki Sensör Değerleri</h3>
         </div>
         <p className="aciklama" style={{ marginBottom: '16px' }}>
           Bu değerler değerlendirme oluşturulduğu andaki ölçümleri gösterir.
@@ -456,14 +455,14 @@ export function TahminDetay() {
           <div className="metrik-kart">
             <span className="etiket">Hava Sıcaklığı</span>
             <div className="deger" style={{ fontSize: '1.25rem' }}>
-              {sayiFormatla(sensor_snapshot.hava_sicakligi_k)} <span style={{ fontSize: '0.85rem' }}>K</span>
+              {sayiFormatla(kelvinToCelsius(sensor_snapshot.hava_sicakligi_k))} <span style={{ fontSize: '0.85rem' }}>°C</span>
             </div>
           </div>
 
           <div className="metrik-kart">
             <span className="etiket">Proses Sıcaklığı</span>
             <div className="deger" style={{ fontSize: '1.25rem' }}>
-              {sayiFormatla(sensor_snapshot.proses_sicakligi_k)} <span style={{ fontSize: '0.85rem' }}>K</span>
+              {sayiFormatla(kelvinToCelsius(sensor_snapshot.proses_sicakligi_k))} <span style={{ fontSize: '0.85rem' }}>°C</span>
             </div>
           </div>
 

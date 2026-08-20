@@ -2,7 +2,7 @@
 
 ## 1. Durum ve kaynak ayrımı
 
-Bu belge tamamlanan Sprint 20R tesliminin aktif ürün gereksinimlerini ve bilinçli kapsam sınırlarını tanımlar.
+Bu belge Sprint 21 final hardening sonrası aktif ürün gereksinimlerini ve bilinçli kapsam sınırlarını tanımlar.
 
 - **PDF zorunluluğu:** Resmî ödevde açıkça beklenen davranış veya ekran.
 - **PDF önerisi:** Bağlayıcı olmayan teknoloji, veri veya örnek değer.

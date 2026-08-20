@@ -5,6 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -132,6 +133,15 @@ class AdminKullaniciDetayi(APIView):
 
     def patch(self, request, pk):
         user = get_object_or_404(Kullanici, pk=pk)
+        if user.pk == request.user.pk:
+            if request.data.get("is_active") is False:
+                raise ValidationError(
+                    {"is_active": ["Yönetici kendi hesabını pasife alamaz."]}
+                )
+            if request.data.get("rol") not in (None, Kullanici.Rol.ADMIN):
+                raise ValidationError(
+                    {"rol": ["Yönetici kendi ADMIN rolünü kaldıramaz."]}
+                )
         serializer = KullaniciGuncellemeSerializer(
             user, data=request.data, partial=True
         )
