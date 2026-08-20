@@ -14,6 +14,6 @@ class SaglikView(APIView):
     def get(self, request):
         saglik = saglik_durumunu_getir()
         serializer = SaglikSerializer(saglik)
-        if saglik.veritabani != "bagli":
+        if saglik.durum != "hazir":
             raise HizmetKullanilamiyorHatasi
         return Response(serializer.data, status=status.HTTP_200_OK)

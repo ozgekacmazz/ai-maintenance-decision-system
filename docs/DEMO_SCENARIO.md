@@ -34,3 +34,19 @@ Demo kimlik bilgileri dokümana yazılmaz. Sunum ortamında `DEMO_ADMIN_USERNAME
 
 Sunum sırasında demo credential, token, hash veya `.env` içeriğini ekrana vermeyin;
 production veritabanında seed/reset çalıştırmayın ve model eğitimi başlatmayın.
+# Sprint 21C production-smoke rehearsal plan
+
+The automated click path is run twice on the production-smoke proxy. Human narration is not claimed as performed. Allocate 8–12 minutes as follows:
+
+1. ADMIN login, dashboard, prediction logs, machine and stock state — 1:30.
+2. USER login and Celsius quick analysis — 1:15.
+3. Canonical priority N/5 and prediction detail — 1:00.
+4. Reject one prediction; approve another into a work order — 1:30.
+5. Explain action, part and SLA; ADMIN override and audit — 1:30.
+6. Run controlled HTTP batch replay — about 0:45 processing plus 1:30 narration.
+7. Explain Precision, Recall, PR-AUC and TN/FP/FN/TP confusion matrix — 1:15.
+8. Limitations and close — 0:45.
+
+During replay: “This is a controlled HTTP batch simulation over prepared AI4I rows, not a real-time broker. It exercises the real prediction and persistence services; local 250-item runs take about 41–49 seconds.” Do not call the score calibrated probability, do not use Accuracy as the KPI, and do not claim ERP, broker, worker, notification or reservation integrations.
+
+Fallback: if replay timing exceeds the presentation window, show the already completed seeded replay and its metrics; if a mutation fixture is no longer pending, reset only the isolated demo database and reseed through the approved one-shot profile.

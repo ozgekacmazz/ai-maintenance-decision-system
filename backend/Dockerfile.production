@@ -1,0 +1,27 @@
+FROM python:3.12.12-slim-bookworm AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
+WORKDIR /build
+COPY backend/requirements/ requirements/
+COPY ml/ /src/ml/
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --upgrade pip==26.2.1 \
+    && /opt/venv/bin/pip install -r requirements/production.txt \
+    && /opt/venv/bin/pip install /src/ml
+
+FROM python:3.12.12-slim-bookworm AS runtime
+
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    HOME=/nonexistent \
+    XDG_CACHE_HOME=/tmp/cache
+WORKDIR /app
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --home-dir /nonexistent --shell /usr/sbin/nologin app
+COPY --from=builder /opt/venv /opt/venv
+COPY --chown=10001:10001 backend/ /app/
+USER 10001:10001
+EXPOSE 8000
+STOPSIGNAL SIGTERM
+CMD ["gunicorn", "config.wsgi:application", "--bind=0.0.0.0:8000", "--workers=2", "--timeout=120", "--graceful-timeout=30", "--access-logfile=-", "--error-logfile=-"]

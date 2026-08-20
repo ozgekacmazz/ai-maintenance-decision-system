@@ -193,6 +193,8 @@ Validation `400`, auth `401`, permission `403`, bulunamayan kaynak `404`, confli
 
 ## Aktif belgeler
 
+API sözleşmesi ve authenticated Swagger kullanımı için [OpenAPI dokümanı](docs/API_OPENAPI.md), izole browser teslim testleri için [E2E test dokümanı](docs/E2E_TESTING.md) kullanılır.
+
 - [Ürün gereksinimleri](docs/PRODUCT_REQUIREMENTS.md)
 - [Mimari](docs/ARCHITECTURE.md)
 - [Bakım öncelik motoru](docs/MAINTENANCE_PRIORITY_ENGINE.md)
@@ -209,5 +211,11 @@ Validation `400`, auth `401`, permission `403`, bulunamayan kaynak `404`, confli
 - [Hata sözleşmesi](docs/ERROR_CONTRACT.md)
 - [Demo senaryosu](docs/DEMO_SCENARIO.md)
 - [Final doğrulama](docs/FINAL_VERIFICATION.md)
+- [Accessibility denetimi](docs/ACCESSIBILITY.md)
+- [Security denetimi](docs/SECURITY_AUDIT.md)
+- [Performance baz çizgisi](docs/PERFORMANCE_BASELINE.md)
+- [Production deployment](docs/PRODUCTION_DEPLOYMENT.md)
+- [Backup/restore](docs/BACKUP_RESTORE.md)
+- [Final runbook](docs/FINAL_RUNBOOK.md)
 
 `docs/decisions/` altındaki ADR'ler ve eski sprint bağlamı taşıyan analiz/raporlar tarihsel karar kanıtıdır; güncel çalışma davranışı için bu README ve aktif sözleşmeler esas alınır.
