@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Python
 __pycache__/
@@ -66,3 +67,9 @@ Thumbs.db
 # Coverage and generated output
 coverage/
 /reports/generated/
+
+# Playwright E2E artifacts
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+frontend/.playwright/

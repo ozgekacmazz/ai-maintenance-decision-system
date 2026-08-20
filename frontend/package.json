@@ -7,7 +7,16 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "vitest"
+    "test": "vitest",
+    "test:e2e": "playwright test analysis.contract.spec.ts auth-admin.contract.spec.ts replay-ui-contract.spec.ts",
+    "test:e2e:real": "playwright test product-journey-real.spec.ts",
+    "test:e2e:replay": "playwright test replay-real.spec.ts",
+    "test:e2e:a11y": "playwright test accessibility-real.spec.ts",
+    "test:e2e:production": "playwright test production-smoke.spec.ts",
+    "test:e2e:all": "npm run test:e2e && npm run test:e2e:real && npm run test:e2e:replay",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.0.5",
@@ -19,7 +28,9 @@
     "vite": "8.2.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@eslint/js": "9.39.5",
+    "@playwright/test": "1.62.1",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.5",
