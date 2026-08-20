@@ -33,6 +33,7 @@ import {
 import { ApiHatasi } from '../types/apiHata'
 import { GeneralPriorityBadge } from '../components/feedback/GeneralPriorityBadge'
 import { MetricCard } from '../components/data-display/MetricCard'
+import { useAccessibleDialog } from '../components/accessibility/useAccessibleDialog'
 import { LoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 import { ErrorState } from '../components/feedback/ErrorState'
 
@@ -62,6 +63,8 @@ export function TahminDetay() {
   const [reddediliyor, setReddediliyor] = useState(false)
   const [redHatasi, setRedHatasi] = useState<string | null>(null)
   const [redTraceId, setRedTraceId] = useState<string | null>(null)
+  const isEmriDialog = useAccessibleDialog(isEmriModalAcik, () => setIsEmriModalAcik(false))
+  const redDialog = useAccessibleDialog(redModalAcik, () => setRedModalAcik(false))
 
   const reddetSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -721,8 +724,8 @@ export function TahminDetay() {
             padding: '16px',
           }}
         >
-          <div className="kart" style={{ maxWidth: '520px', width: '100%' }}>
-            <h3>Bakım Kararını Onayla</h3>
+          <div {...isEmriDialog} aria-labelledby="is-emri-dialog-title" className="kart" style={{ maxWidth: '520px', width: '100%', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}>
+            <h3 id="is-emri-dialog-title">Bakım Kararını Onayla</h3>
             <p>Bu değerlendirmeyi onayladığınızda bakım ekibi için bir iş emri oluşturulacaktır.</p>
             {isEmriHatasi && <ErrorState mesaj={isEmriHatasi} />}
 
@@ -730,6 +733,7 @@ export function TahminDetay() {
               <div>
                 <label htmlFor="is-emri-baslik">İş Emri Başlığı</label>
                 <input
+                  data-dialog-initial-focus
                   id="is-emri-baslik"
                   type="text"
                   value={isEmriBaslik}
@@ -788,14 +792,15 @@ export function TahminDetay() {
             padding: '16px',
           }}
         >
-          <div className="kart" style={{ maxWidth: '520px', width: '100%' }}>
-            <h3>Değerlendirmeyi Reddet</h3>
+          <div {...redDialog} aria-labelledby="red-dialog-title" className="kart" style={{ maxWidth: '520px', width: '100%', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}>
+            <h3 id="red-dialog-title">Değerlendirmeyi Reddet</h3>
             <p>Bu öneriyi reddetmek istediğinizi onaylayın. İsterseniz bir neden belirtebilirsiniz.</p>
             {redHatasi && <ErrorState mesaj={redHatasi} traceId={redTraceId} />}
 
             <form onSubmit={(e) => void reddetSubmit(e)}>
               <label htmlFor="red-nedeni">Red nedeni (isteğe bağlı)</label>
               <textarea
+                data-dialog-initial-focus
                 id="red-nedeni"
                 value={redNedeni}
                 onChange={(e) => setRedNedeni(e.target.value)}

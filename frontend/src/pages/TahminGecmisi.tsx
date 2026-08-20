@@ -224,16 +224,17 @@ export function TahminGecmisi() {
 
           <div style={{ overflowX: 'auto' }}>
             <table className="veri-tablosu">
+              <caption className="sr-only">Tahmin geçmişi kayıtları</caption>
               <thead>
                 <tr>
-                  <th>Makine</th>
-                  <th>Ölçüm Zamanı</th>
-                  <th>Risk Oranı</th>
-                  <th>Fiziksel Arıza Tipi</th>
-                  <th>Bakım Önceliği</th>
-                  <th>Ana Aksiyon</th>
-                  <th>Karar Güveni</th>
-                  <th>Kaynak</th>
+                  <th scope="col">Makine</th>
+                  <th scope="col">Ölçüm Zamanı</th>
+                  <th scope="col">Risk Oranı</th>
+                  <th scope="col">Fiziksel Arıza Tipi</th>
+                  <th scope="col">Bakım Önceliği</th>
+                  <th scope="col">Ana Aksiyon</th>
+                  <th scope="col">Karar Güveni</th>
+                  <th scope="col">Kaynak</th>
                 </tr>
               </thead>
               <tbody>
@@ -241,6 +242,15 @@ export function TahminGecmisi() {
                   <tr
                     key={kayit.id}
                     onClick={() => navigate(`/app/tahminler/${kayit.id}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        navigate(`/app/tahminler/${kayit.id}`)
+                      }
+                    }}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`${kayit.makine.kod} tahmin detayını aç`}
                     style={{ cursor: 'pointer' }}
                   >
                     <td>

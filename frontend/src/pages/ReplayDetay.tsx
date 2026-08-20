@@ -415,14 +415,15 @@ export function ReplayDetay() {
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="veri-tablosu">
+              <caption className="sr-only">Replay içinde işlenen ölçümler</caption>
               <thead>
                 <tr>
-                  <th>Sıra No</th>
-                  <th>Durum</th>
-                  <th>Risk Uyarısı</th>
-                  <th>Öncelik</th>
-                  <th>İşlenme Zamanı</th>
-                  <th style={{ textAlign: 'right' }}>Kaynak Tahmin Kaydı</th>
+                  <th scope="col">Sıra No</th>
+                  <th scope="col">Durum</th>
+                  <th scope="col">Risk Uyarısı</th>
+                  <th scope="col">Öncelik</th>
+                  <th scope="col">İşlenme Zamanı</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Kaynak Tahmin Kaydı</th>
                 </tr>
               </thead>
               <tbody>

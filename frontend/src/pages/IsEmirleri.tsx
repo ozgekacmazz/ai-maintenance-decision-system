@@ -260,19 +260,20 @@ export function IsEmirleri() {
         <div className="dashboard-panel" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table className="veri-tablosu">
+              <caption className="sr-only">Bakım iş emirleri</caption>
               <thead>
                 <tr>
-                  <th>İş Emri No</th>
-                  <th>Makine</th>
-                  <th>Aksiyon</th>
-                  <th>Parça</th>
-                  <th>Öncelik</th>
-                  <th>Durum</th>
-                  <th>Atanan</th>
-                  <th>Hedef Müdahale</th>
-                  <th>SLA</th>
-                  <th>Oluşturulma</th>
-                  <th style={{ textAlign: 'right' }}>İşlem</th>
+                  <th scope="col">İş Emri No</th>
+                  <th scope="col">Makine</th>
+                  <th scope="col">Aksiyon</th>
+                  <th scope="col">Parça</th>
+                  <th scope="col">Öncelik</th>
+                  <th scope="col">Durum</th>
+                  <th scope="col">Atanan</th>
+                  <th scope="col">Hedef Müdahale</th>
+                  <th scope="col">SLA</th>
+                  <th scope="col">Oluşturulma</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>İşlem</th>
                 </tr>
               </thead>
               <tbody>

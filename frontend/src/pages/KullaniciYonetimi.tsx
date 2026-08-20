@@ -5,6 +5,7 @@ import { useAuth } from '../app/AuthContext'
 import { ApiHatasi } from '../types/apiHata'
 import { LoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 import { ErrorState } from '../components/feedback/ErrorState'
+import { useAccessibleDialog } from '../components/accessibility/useAccessibleDialog'
 import { rolMetni } from '../types/tahminler'
 import type { KullaniciYonetimItem } from '../types/yonetim'
 
@@ -41,6 +42,8 @@ export function KullaniciYonetimi() {
   const [yeniSifre, setYeniSifre] = useState('')
   const [sifreHata, setSifreHata] = useState<string | null>(null)
   const [basariMesaji, setBasariMesaji] = useState<string | null>(null)
+  const yeniDialog = useAccessibleDialog(yeniModalAcik, () => setYeniModalAcik(false))
+  const sifreDialog = useAccessibleDialog(sifreModalAcik, () => setSifreModalAcik(false))
 
   const yukleData = useCallback(() => {
     setYukleniyor(true)
@@ -213,14 +216,15 @@ export function KullaniciYonetimi() {
         <div className="dashboard-panel">
           <div className="tablo-konteyner">
             <table className="tablo">
+              <caption className="sr-only">Sistem kullanıcıları ve yönetim işlemleri</caption>
               <thead>
                 <tr>
-                  <th>Kullanıcı Adı</th>
-                  <th>E-Posta</th>
-                  <th>Sistem Rolü</th>
-                  <th>Durum</th>
-                  <th>Kayıt Tarihi</th>
-                  <th style={{ textAlign: 'right' }}>Aksiyonlar</th>
+                  <th scope="col">Kullanıcı Adı</th>
+                  <th scope="col">E-Posta</th>
+                  <th scope="col">Sistem Rolü</th>
+                  <th scope="col">Durum</th>
+                  <th scope="col">Kayıt Tarihi</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Aksiyonlar</th>
                 </tr>
               </thead>
               <tbody>
@@ -282,16 +286,16 @@ export function KullaniciYonetimi() {
       {/* Modal: Yeni Kullanıcı */}
       {yeniModalAcik && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'var(--bg-surface, #ffffff)', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+          <div {...yeniDialog} role="dialog" aria-modal="true" aria-labelledby="yeni-kullanici-basligi" style={{ background: 'var(--bg-surface, #ffffff)', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '440px', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0 }}>Yeni Kullanıcı Tanımla</h3>
-              <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setYeniModalAcik(false)}>
+              <h3 id="yeni-kullanici-basligi" style={{ margin: 0 }}>Yeni Kullanıcı Tanımla</h3>
+              <button type="button" aria-label="Yeni kullanıcı penceresini kapat" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setYeniModalAcik(false)}>
                 <X size={20} />
               </button>
             </div>
 
             {formHata && (
-              <div style={{ padding: '10px 12px', marginBottom: '12px', background: 'var(--status-danger-bg, #fef2f2)', color: 'var(--status-danger-text, #991b1b)', borderRadius: '6px', fontSize: '0.88rem' }}>
+              <div role="alert" style={{ padding: '10px 12px', marginBottom: '12px', background: 'var(--status-danger-bg, #fef2f2)', color: 'var(--status-danger-text, #991b1b)', borderRadius: '6px', fontSize: '0.88rem' }}>
                 {formHata}
               </div>
             )}
@@ -301,6 +305,7 @@ export function KullaniciYonetimi() {
                 <label className="form-etiketi" htmlFor="yeni-kullanici-adi">Kullanıcı Adı *</label>
                 <input
                   id="yeni-kullanici-adi"
+                  data-dialog-initial-focus
                   type="text"
                   className="form-girdisi"
                   value={yeniUsername}
@@ -311,8 +316,9 @@ export function KullaniciYonetimi() {
               </div>
 
               <div className="form-grubu" style={{ marginBottom: '12px' }}>
-                <label className="form-etiketi">E-Posta</label>
+                <label className="form-etiketi" htmlFor="yeni-kullanici-email">E-Posta</label>
                 <input
+                  id="yeni-kullanici-email"
                   type="email"
                   className="form-girdisi"
                   value={yeniEmail}
@@ -332,13 +338,16 @@ export function KullaniciYonetimi() {
                   placeholder="••••••••"
                   required
                   minLength={8}
+                  autoComplete="new-password"
+                  aria-describedby="yeni-parola-yardimi"
                 />
-                <small>{PAROLA_YARDIMI}</small>
+                <small id="yeni-parola-yardimi">{PAROLA_YARDIMI}</small>
               </div>
 
               <div className="form-grubu" style={{ marginBottom: '20px' }}>
-                <label className="form-etiketi">Sistem Rolü *</label>
+                <label className="form-etiketi" htmlFor="yeni-kullanici-rolu">Sistem Rolü *</label>
                 <select
+                  id="yeni-kullanici-rolu"
                   className="form-girdisi"
                   value={yeniRol}
                   onChange={(e) => setYeniRol(e.target.value as 'ADMIN' | 'USER')}
@@ -364,10 +373,10 @@ export function KullaniciYonetimi() {
       {/* Modal: Şifre Sıfırla */}
       {sifreModalAcik && seciliKullanici && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'var(--bg-surface, #ffffff)', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+          <div {...sifreDialog} role="dialog" aria-modal="true" aria-labelledby="parola-sifirlama-basligi" style={{ background: 'var(--bg-surface, #ffffff)', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0 }}>Parola Sıfırla</h3>
-              <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setSifreModalAcik(false)}>
+              <h3 id="parola-sifirlama-basligi" style={{ margin: 0 }}>Parola Sıfırla</h3>
+              <button type="button" aria-label="Parola sıfırlama penceresini kapat" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setSifreModalAcik(false)}>
                 <X size={20} />
               </button>
             </div>
@@ -377,7 +386,7 @@ export function KullaniciYonetimi() {
             </p>
 
             {sifreHata && (
-              <div style={{ padding: '10px 12px', marginBottom: '12px', background: 'var(--status-danger-bg, #fef2f2)', color: 'var(--status-danger-text, #991b1b)', borderRadius: '6px', fontSize: '0.88rem' }}>
+              <div role="alert" style={{ padding: '10px 12px', marginBottom: '12px', background: 'var(--status-danger-bg, #fef2f2)', color: 'var(--status-danger-text, #991b1b)', borderRadius: '6px', fontSize: '0.88rem' }}>
                 {sifreHata}
               </div>
             )}
@@ -387,6 +396,7 @@ export function KullaniciYonetimi() {
                 <label className="form-etiketi" htmlFor="sifirlama-parolasi">Yeni Parola *</label>
                 <input
                   id="sifirlama-parolasi"
+                  data-dialog-initial-focus
                   type="password"
                   className="form-girdisi"
                   value={yeniSifre}
@@ -394,8 +404,10 @@ export function KullaniciYonetimi() {
                   placeholder="En az 8 karakter"
                   required
                   minLength={8}
+                  autoComplete="new-password"
+                  aria-describedby="sifirlama-parola-yardimi"
                 />
-                <small>{PAROLA_YARDIMI}</small>
+                <small id="sifirlama-parola-yardimi">{PAROLA_YARDIMI}</small>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>

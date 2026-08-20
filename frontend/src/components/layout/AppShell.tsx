@@ -8,13 +8,14 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#ana-icerik">İçeriğe geç</a>
       <Sidebar acik={sidebarAcik} onKapat={() => setSidebarAcik(false)} />
       <div className="app-ana-icerik">
         <Header
           sidebarAcik={sidebarAcik}
           onToggleSidebar={() => setSidebarAcik(!sidebarAcik)}
         />
-        <main className="sayfa-icerik">
+        <main id="ana-icerik" className="sayfa-icerik" tabIndex={-1}>
           <Outlet />
         </main>
       </div>

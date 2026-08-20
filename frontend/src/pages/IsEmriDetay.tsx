@@ -25,6 +25,7 @@ import { ErrorState } from '../components/feedback/ErrorState'
 import { GeneralPriorityBadge } from '../components/feedback/GeneralPriorityBadge'
 import { MetricCard } from '../components/data-display/MetricCard'
 import { sayiFormatla } from '../types/tahminler'
+import { useAccessibleDialog } from '../components/accessibility/useAccessibleDialog'
 
 export function IsEmriDetay() {
   const { isEmriId } = useParams<{ isEmriId: string }>()
@@ -50,6 +51,8 @@ export function IsEmriDetay() {
   const [etkinOncelik, setEtkinOncelik] = useState<IsEmriOncelik>('KRITIK')
   const [genelOncelik, setGenelOncelik] = useState<GenelOncelik>(3)
   const [overrideNedeni, setOverrideNedeni] = useState('')
+  const gecisDialog = useAccessibleDialog(gecisModalAcik, () => setGecisModalAcik(false))
+  const overrideDialog = useAccessibleDialog(overrideModalAcik, () => setOverrideModalAcik(false))
 
   const isAdmin = kullanici?.rol === 'ADMIN'
 
@@ -427,14 +430,15 @@ export function IsEmriDetay() {
             padding: '16px',
           }}
         >
-          <div className="kart" style={{ maxWidth: '500px', width: '100%' }}>
-            <h3>İş Emri Durum Geçişi</h3>
+          <div {...gecisDialog} aria-labelledby="gecis-dialog-title" className="kart" style={{ maxWidth: '500px', width: '100%', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}>
+            <h3 id="gecis-dialog-title">İş Emri Durum Geçişi</h3>
             {islemHatasi && <ErrorState mesaj={islemHatasi} />}
 
             <form onSubmit={(e) => void durumGecisiYap(e)}>
               <div>
                 <label htmlFor="hedef-durum">Hedef Durum</label>
                 <select
+                  data-dialog-initial-focus
                   id="hedef-durum"
                   value={hedefDurum}
                   onChange={(e) => setHedefDurum(e.target.value as IsEmriDurum)}
@@ -521,14 +525,15 @@ export function IsEmriDetay() {
             padding: '16px',
           }}
         >
-          <div className="kart" style={{ maxWidth: '500px', width: '100%' }}>
-            <h3>Yönetici Öncelik Müdahalesi (Admin)</h3>
+          <div {...overrideDialog} aria-labelledby="override-dialog-title" className="kart" style={{ maxWidth: '500px', width: '100%', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}>
+            <h3 id="override-dialog-title">Yönetici Öncelik Müdahalesi (Admin)</h3>
             {islemHatasi && <ErrorState mesaj={islemHatasi} />}
 
             <form onSubmit={(e) => void oncelikOverrideYap(e)}>
               <div>
                 <label htmlFor="etkin-oncelik">Yeni Etkin Öncelik</label>
                 <select
+                  data-dialog-initial-focus
                   id="etkin-oncelik"
                   value={isEmri.etkin_genel_oncelik !== null ? genelOncelik : etkinOncelik}
                   onChange={(e) => {

@@ -165,15 +165,16 @@ export function ReplayListesi() {
         <div className="dashboard-panel" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table className="veri-tablosu">
+              <caption className="sr-only">Replay çalıştırmaları</caption>
               <thead>
                 <tr>
-                  <th>Makine</th>
-                  <th>Split</th>
-                  <th>Durum</th>
-                  <th>İlerleme</th>
-                  <th>Başarılı / Hatalı</th>
-                  <th>Oluşturulma</th>
-                  <th style={{ textAlign: 'right' }}>İşlem</th>
+                  <th scope="col">Makine</th>
+                  <th scope="col">Split</th>
+                  <th scope="col">Durum</th>
+                  <th scope="col">İlerleme</th>
+                  <th scope="col">Başarılı / Hatalı</th>
+                  <th scope="col">Oluşturulma</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>İşlem</th>
                 </tr>
               </thead>
               <tbody>
