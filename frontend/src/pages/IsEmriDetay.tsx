@@ -10,9 +10,12 @@ import {
 } from 'lucide-react'
 import {
   isEmriDetayiGetir,
+  isEmriAta,
   isEmriDurumGecisi,
   isEmriOncelikOverride,
 } from '../api/isEmirleri'
+import { kullanicilariGetir } from '../api/yonetim'
+import type { KullaniciYonetimItem } from '../types/yonetim'
 import type { GenelOncelik, IsEmriDetay, IsEmriDurum, IsEmriOncelik } from '../types/isEmirleri'
 import {
   GECERLI_DURUM_GECISLERI,
@@ -45,6 +48,13 @@ export function IsEmriDetay() {
   const [iptalNedeni, setIptalNedeni] = useState('')
   const [islemGonderiliyor, setIslemGonderiliyor] = useState(false)
   const [islemHatasi, setIslemHatasi] = useState<string | null>(null)
+  const [atamaModalAcik, setAtamaModalAcik] = useState(false)
+  const [aktifKullanicilar, setAktifKullanicilar] = useState<KullaniciYonetimItem[]>([])
+  const [atanacakKullaniciId, setAtanacakKullaniciId] = useState<number | ''>('')
+  const [atamaNotu, setAtamaNotu] = useState('')
+  const [atamaHatasi, setAtamaHatasi] = useState<string | null>(null)
+  const [atamaCakismasi, setAtamaCakismasi] = useState(false)
+  const [atamaYukleniyor, setAtamaYukleniyor] = useState(false)
 
   // Admin override state
   const [overrideModalAcik, setOverrideModalAcik] = useState(false)
@@ -53,8 +63,61 @@ export function IsEmriDetay() {
   const [overrideNedeni, setOverrideNedeni] = useState('')
   const gecisDialog = useAccessibleDialog(gecisModalAcik, () => setGecisModalAcik(false))
   const overrideDialog = useAccessibleDialog(overrideModalAcik, () => setOverrideModalAcik(false))
+  const atamaDialog = useAccessibleDialog(atamaModalAcik, () => setAtamaModalAcik(false))
 
   const isAdmin = kullanici?.rol === 'ADMIN'
+
+  const guncelVeriyiYukle = async () => {
+    if (!isEmriId) return
+    const guncel = await isEmriDetayiGetir(isEmriId)
+    setIsEmri(guncel)
+    setAtamaCakismasi(false)
+    setAtamaHatasi(null)
+  }
+
+  const atamaModaliniAc = async () => {
+    if (!isEmri) return
+    setAtamaModalAcik(true)
+    setAtamaYukleniyor(true)
+    setAtamaHatasi(null)
+    setAtamaCakismasi(false)
+    setAtanacakKullaniciId(isEmri.atanan_kullanici?.id ?? '')
+    try {
+      const kullanicilar = await kullanicilariGetir()
+      setAktifKullanicilar(kullanicilar.filter((aday) => aday.is_active))
+    } catch (err) {
+      setAtamaHatasi(err instanceof ApiHatasi ? err.message : 'Kullanıcı listesi yüklenemedi.')
+    } finally {
+      setAtamaYukleniyor(false)
+    }
+  }
+
+  const atamayiKaydet = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isEmri || atanacakKullaniciId === '') return
+    setAtamaYukleniyor(true)
+    setAtamaHatasi(null)
+    setAtamaCakismasi(false)
+    try {
+      const guncel = await isEmriAta(isEmri.id, {
+        atanan_kullanici_id: atanacakKullaniciId,
+        beklenen_version: isEmri.version,
+        not: atamaNotu.trim() || undefined,
+      })
+      setIsEmri(guncel)
+      setAtamaModalAcik(false)
+      setAtamaNotu('')
+    } catch (err) {
+      if (err instanceof ApiHatasi && err.status === 409) {
+        setAtamaCakismasi(true)
+        setAtamaHatasi('Bu iş emri siz formu açtıktan sonra değiştirildi. Güncel veriyi yükleyip yeniden deneyin.')
+      } else if (err instanceof ApiHatasi && err.status === 403) {
+        setAtamaHatasi('Bu iş emrini atama yetkiniz yok.')
+      } else setAtamaHatasi(err instanceof ApiHatasi ? err.message : 'Atama kaydedilemedi.')
+    } finally {
+      setAtamaYukleniyor(false)
+    }
+  }
 
   useEffect(() => {
     if (!isEmriId) return
@@ -174,7 +237,18 @@ export function IsEmriDetay() {
     )
   }
 
-  const gecerliGecisler = GECERLI_DURUM_GECISLERI[isEmri.durum] || []
+  const tumGecisler = GECERLI_DURUM_GECISLERI[isEmri.durum] || []
+  const kullaniciAtananKisi = isEmri.atanan_kullanici?.id === kullanici?.id
+  const gecerliGecisler = isAdmin
+    ? tumGecisler
+    : kullaniciAtananKisi
+      ? tumGecisler.filter((durum) => durum !== 'IPTAL_EDILDI')
+      : []
+  const gecisEngeli = !isAdmin && !kullaniciAtananKisi
+    ? isEmri.atanan_kullanici
+      ? 'Bu iş emri başka bir kullanıcıya atanmış. Yalnız atanan kullanıcı durumunu değiştirebilir.'
+      : 'Bu iş emri henüz atanmadı. Atama yapıldıktan sonra operasyonel durum değiştirilebilir.'
+    : null
 
   return (
     <div className="sayfa-konteyner">
@@ -280,6 +354,12 @@ export function IsEmriDetay() {
           )}
 
           {isAdmin && (
+            <button type="button" className="buton-primer" onClick={() => void atamaModaliniAc()}>
+              <span>{isEmri.atanan_kullanici ? 'Yeniden Ata' : 'Kullanıcı Ata'}</span>
+            </button>
+          )}
+
+          {isAdmin && (
             <button
               type="button"
               className="buton-sekonder"
@@ -294,6 +374,7 @@ export function IsEmriDetay() {
             </button>
           )}
         </div>
+        {gecisEngeli && <p className="aciklama" role="status" style={{ marginTop: 12 }}>{gecisEngeli}</p>}
       </div>
 
       {/* Kaynak Bakım Kararı Özeti */}
@@ -391,7 +472,9 @@ export function IsEmriDetay() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{olay.olay_tipi}</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    {olay.olay_tipi === 'ATAMA' || olay.olay_tipi === 'ATANDI' ? 'Kullanıcı ataması' : olay.olay_tipi === 'OLUSTURULDU' ? 'İş emri oluşturuldu' : olay.olay_tipi}
+                  </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     {new Date(olay.olusturulma_zamani).toLocaleString('tr-TR')}
                   </span>
@@ -409,12 +492,45 @@ export function IsEmriDetay() {
                   {olay.onceki_oncelik && olay.yeni_oncelik && (
                     <span> — Öncelik {olay.onceki_oncelik} → {olay.yeni_oncelik}</span>
                   )}
+                  {typeof olay.detay?.not === 'string' && <span> — Not: {olay.detay.not}</span>}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {atamaModalAcik && (
+        <div className="dialog-arkaplan">
+          <div {...atamaDialog} aria-labelledby="atama-dialog-title" className="kart" style={{ maxWidth: 500, width: '100%' }}>
+            <h3 id="atama-dialog-title">{isEmri.atanan_kullanici ? 'İş Emrini Yeniden Ata' : 'İş Emrine Kullanıcı Ata'}</h3>
+            <p className="aciklama">Mevcut atanan: <strong>{isEmri.atanan_kullanici?.kullanici_adi ?? 'Henüz atanmadı'}</strong></p>
+            {atamaHatasi && <ErrorState mesaj={atamaHatasi} />}
+            {atamaCakismasi && (
+              <button type="button" className="buton-sekonder" onClick={() => void guncelVeriyiYukle()}>
+                Güncel Veriyi Yükle
+              </button>
+            )}
+            <form onSubmit={(e) => void atamayiKaydet(e)}>
+              <div>
+                <label htmlFor="atanan-kullanici">Aktif kullanıcı</label>
+                <select data-dialog-initial-focus id="atanan-kullanici" value={atanacakKullaniciId} onChange={(e) => setAtanacakKullaniciId(Number(e.target.value))} required disabled={atamaYukleniyor}>
+                  <option value="">Kullanıcı seçin</option>
+                  {aktifKullanicilar.map((aday) => <option key={aday.id} value={aday.id}>{aday.username}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="atama-notu">Atama notu (isteğe bağlı)</label>
+                <textarea id="atama-notu" value={atamaNotu} onChange={(e) => setAtamaNotu(e.target.value)} maxLength={500} />
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                <button type="button" className="buton-sekonder" onClick={() => setAtamaModalAcik(false)} disabled={atamaYukleniyor}>İptal</button>
+                <button type="submit" className="buton-primer" disabled={atamaYukleniyor || atanacakKullaniciId === ''}>{atamaYukleniyor ? 'Kaydediliyor...' : 'Atamayı Kaydet'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Durum Geçişi Modal */}
       {gecisModalAcik && (

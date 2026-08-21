@@ -172,7 +172,7 @@ export function ReplayListesi() {
                   <th scope="col">Split</th>
                   <th scope="col">Durum</th>
                   <th scope="col">İlerleme</th>
-                  <th scope="col">Başarılı / Hatalı</th>
+                  <th scope="col">Teknik İşleme Sonucu</th>
                   <th scope="col">Oluşturulma</th>
                   <th scope="col" style={{ textAlign: 'right' }}>İşlem</th>
                 </tr>
@@ -366,7 +366,7 @@ export function ReplayListesi() {
                   İptal
                 </button>
                 <button type="submit" className="buton-primer" disabled={olusturuluyor}>
-                  {olusturuluyor ? 'Oluşturuluyor...' : 'Oturumu Başlat'}
+                  {olusturuluyor ? 'Oluşturuluyor...' : 'Oturumu Oluştur'}
                 </button>
               </div>
             </form>

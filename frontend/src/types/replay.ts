@@ -72,7 +72,7 @@ export interface ReplayOge {
   durum: ReplayOgeDurum
   tahmin_kaydi_id: string | null
   hata_mesaji: string | null
-  islenme_zamani: string | null
+  tamamlanma_zamani: string | null
   risk_uyarisi: boolean | null
   oncelik_seviyesi: string | null
 }
@@ -138,9 +138,9 @@ export function replayOgeDurumMetni(durum: ReplayOgeDurum | string | null | unde
     case 'ISLENIYOR':
       return 'İşleniyor'
     case 'BASARILI':
-      return 'Başarılı'
+      return 'Teknik olarak işlendi'
     case 'BASARISIZ':
-      return 'Başarısız'
+      return 'İşleme hatası'
     case 'ATLANDI':
       return 'Atlandı'
     default:

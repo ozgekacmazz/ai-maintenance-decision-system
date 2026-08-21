@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Building2, Plus, Edit2, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { makineAktiflikDegistir, makineGuncelle, makineleriGetirFull, makineOlustur } from '../api/yonetim'
 import type { Makine } from '../types/yonetim'
@@ -27,32 +27,30 @@ export function MakineYonetimi() {
   const [islemGonderiliyor, setIslemGonderiliyor] = useState(false)
   const [modalHatasi, setModalHatasi] = useState<string | null>(null)
 
-  useEffect(() => {
-    let unmounted = false
-
-    makineleriGetirFull(sayfa, 10)
-      .then((res) => {
-        if (!unmounted) {
-          setVeri({ count: res.count, results: res.results })
-          setYukleniyor(false)
-        }
-      })
-      .catch((err) => {
-        if (!unmounted) {
-          if (err instanceof ApiHatasi) {
-            setHata(err.message)
-            setTraceId(err.traceId ?? null)
-          } else {
-            setHata('Makine listesi yüklenirken bir hata oluştu.')
-          }
-          setYukleniyor(false)
-        }
-      })
-
-    return () => {
-      unmounted = true
+  const yenidenYukle = useCallback(async () => {
+    setYukleniyor(true)
+    setHata(null)
+    setTraceId(null)
+    try {
+      const res = await makineleriGetirFull(sayfa, 10)
+      setVeri({ count: res.count, results: res.results })
+    } catch (err) {
+      if (err instanceof ApiHatasi) {
+        setHata(err.message)
+        setTraceId(err.traceId ?? null)
+      } else setHata('Makine listesi yüklenirken bir hata oluştu.')
+    } finally {
+      setYukleniyor(false)
     }
   }, [sayfa])
+
+  useEffect(() => {
+    let unmounted = false
+    void (async () => {
+      if (!unmounted) await yenidenYukle()
+    })()
+    return () => { unmounted = true }
+  }, [yenidenYukle])
 
   const modalAcYeni = () => {
     setDuzenlenecekMakine(null)
@@ -92,7 +90,7 @@ export function MakineYonetimi() {
         })
       }
       setModalAcik(false)
-      setSayfa((s) => s)
+      await yenidenYukle()
     } catch (err) {
       if (err instanceof ApiHatasi) {
         setModalHatasi(err.message)
@@ -107,7 +105,7 @@ export function MakineYonetimi() {
   const aktiflikDegistir = async (m: Makine) => {
     try {
       await makineAktiflikDegistir(m.id, !m.aktif)
-      setSayfa((s) => s)
+      await yenidenYukle()
     } catch (err) {
       if (err instanceof ApiHatasi) {
         setHata(err.message)

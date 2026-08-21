@@ -62,7 +62,7 @@ const MOCK_REPLAY_DETAIL: ReplayOturumDetay = {
       durum: 'BASARILI',
       tahmin_kaydi_id: 'pred-101',
       hata_mesaji: null,
-      islenme_zamani: '2026-08-19T10:00:05Z',
+      tamamlanma_zamani: '2026-08-19T10:00:05Z',
       risk_uyarisi: true,
       oncelik_seviyesi: 'KRITIK',
     },

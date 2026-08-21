@@ -175,10 +175,10 @@ export function isEmriOncelikMetni(oncelik: IsEmriOncelik | string | null | unde
 }
 
 export const GECERLI_DURUM_GECISLERI: Record<IsEmriDurum, IsEmriDurum[]> = {
-  ACIK: ['ATANDI', 'IPTAL_EDILDI'],
+  ACIK: ['IPTAL_EDILDI'],
   ATANDI: ['DEVAM_EDIYOR', 'BEKLEMEDE', 'IPTAL_EDILDI'],
   DEVAM_EDIYOR: ['BEKLEMEDE', 'TAMAMLANDI', 'IPTAL_EDILDI'],
-  BEKLEMEDE: ['ATANDI', 'DEVAM_EDIYOR', 'IPTAL_EDILDI'],
+  BEKLEMEDE: ['DEVAM_EDIYOR', 'IPTAL_EDILDI'],
   TAMAMLANDI: [],
   IPTAL_EDILDI: [],
 }

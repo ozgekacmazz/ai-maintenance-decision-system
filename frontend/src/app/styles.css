@@ -1266,3 +1266,18 @@ input:focus, select:focus {
   font-size: 0.8rem;
   font-weight: 600;
 }
+.dialog-arkaplan {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.dialog-arkaplan > [role='dialog'] {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}

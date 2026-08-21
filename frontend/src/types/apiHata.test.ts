@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { ApiHatasi, agHatasiniNormalizeEt, responseHatasiniNormalizeEt } from './apiHata'
+import { alanHatalariniDuzlestir, alanHatasiGetir, ApiHatasi, agHatasiniNormalizeEt, responseHatasiniNormalizeEt } from './apiHata'
 
 describe('API hata normalizasyonu', () => {
+  it('iç içe alan ve dizi hatalarını noktalı yollara dönüştürür', () => {
+    const alanlar = { sensor_verisi: { tork_nm: ['Mekanik güç sınırı aşıldı.'] }, satirlar: [{ sicaklik: ['Geçersiz.'] }] }
+    expect(alanHatalariniDuzlestir(alanlar)).toEqual({
+      'sensor_verisi.tork_nm': ['Mekanik güç sınırı aşıldı.'],
+      'satirlar.0.sicaklik': ['Geçersiz.'],
+    })
+    expect(alanHatasiGetir(new ApiHatasi(400, 'GECERSIZ', 'Formu kontrol edin.', alanlar), 'tork_nm')).toBe('Mekanik güç sınırı aşıldı.')
+  })
   it('standart 400 alan hatalarını korur', async () => {
     const response = new Response(JSON.stringify({
       hata: { kod: 'GECERSIZ_ISTEK', mesaj: 'Doğrulama hatası.', alanlar: { username: ['Zorunlu.'] }, trace_id: 'trace-1' },

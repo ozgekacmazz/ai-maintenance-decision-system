@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Package, Edit2, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { stokGuncelle, stoklariGetir } from '../api/yonetim'
 import type { StokItem } from '../types/yonetim'
@@ -27,32 +27,30 @@ export function StokYonetimi() {
   const [islemGonderiliyor, setIslemGonderiliyor] = useState(false)
   const [modalHatasi, setModalHatasi] = useState<string | null>(null)
 
-  useEffect(() => {
-    let unmounted = false
-
-    stoklariGetir(sayfa, 10)
-      .then((res) => {
-        if (!unmounted) {
-          setVeri({ count: res.count, results: res.results })
-          setYukleniyor(false)
-        }
-      })
-      .catch((err) => {
-        if (!unmounted) {
-          if (err instanceof ApiHatasi) {
-            setHata(err.message)
-            setTraceId(err.traceId ?? null)
-          } else {
-            setHata('Stok ve parça listesi yüklenirken bir hata oluştu.')
-          }
-          setYukleniyor(false)
-        }
-      })
-
-    return () => {
-      unmounted = true
+  const yenidenYukle = useCallback(async () => {
+    setYukleniyor(true)
+    setHata(null)
+    setTraceId(null)
+    try {
+      const res = await stoklariGetir(sayfa, 10)
+      setVeri({ count: res.count, results: res.results })
+    } catch (err) {
+      if (err instanceof ApiHatasi) {
+        setHata(err.message)
+        setTraceId(err.traceId ?? null)
+      } else setHata('Stok ve parça listesi yüklenirken bir hata oluştu.')
+    } finally {
+      setYukleniyor(false)
     }
   }, [sayfa])
+
+  useEffect(() => {
+    let unmounted = false
+    void (async () => {
+      if (!unmounted) await yenidenYukle()
+    })()
+    return () => { unmounted = true }
+  }, [yenidenYukle])
 
   const modalAcDuzenle = (stok: StokItem) => {
     setSeciliStok(stok)
@@ -77,7 +75,7 @@ export function StokYonetimi() {
         tedarik_gun: Number(tedarikGun),
       })
       setModalAcik(false)
-      setSayfa((s) => s)
+      await yenidenYukle()
     } catch (err) {
       if (err instanceof ApiHatasi) {
         setModalHatasi(err.message)

@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IsEmriDetay } from './IsEmriDetay'
 import * as isEmirleriApi from '../api/isEmirleri'
 import * as authContext from '../app/AuthContext'
 import type { IsEmriDetay as IsEmriDetayType } from '../types/isEmirleri'
+import * as yonetimApi from '../api/yonetim'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -102,5 +103,32 @@ describe('IsEmriDetay', () => {
     expect(screen.getByText('ahmet.bakim')).toBeInTheDocument()
     expect(screen.getByText('Öncelik 5/5')).toBeInTheDocument()
     expect(screen.getByText('Kaynak Değerlendirmeyi Gör')).toBeInTheDocument()
+  })
+
+  it('ADMIN yalnız aktif kullanıcıya atar ve dönen güncel state bilgisini gösterir', async () => {
+    vi.spyOn(authContext, 'useAuth').mockReturnValue({ kullanici: { id: 1, username: 'admin', rol: 'ADMIN' }, yukleniyor: false, giris: vi.fn(), cikis: vi.fn() })
+    vi.spyOn(isEmirleriApi, 'isEmriDetayiGetir').mockResolvedValue({ ...MOCK_WO_DETAIL, durum: 'ACIK', atanan_kullanici: null })
+    vi.spyOn(yonetimApi, 'kullanicilariGetir').mockResolvedValue([
+      { id: 5, username: 'aktif.user', email: '', rol: 'USER', is_active: true, date_joined: '' },
+      { id: 6, username: 'pasif.user', email: '', rol: 'USER', is_active: false, date_joined: '' },
+    ])
+    const ata = vi.spyOn(isEmirleriApi, 'isEmriAta').mockResolvedValue({ ...MOCK_WO_DETAIL, version: 2, durum: 'ATANDI', atanan_kullanici: { id: 5, kullanici_adi: 'aktif.user' } })
+    render(<MemoryRouter initialEntries={['/app/is-emirleri/wo-101']}><Routes><Route path="/app/is-emirleri/:isEmriId" element={<IsEmriDetay />} /></Routes></MemoryRouter>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Kullanıcı Ata' }))
+    expect(await screen.findByRole('option', { name: 'aktif.user' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'pasif.user' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Aktif kullanıcı'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Atamayı Kaydet' }))
+    await waitFor(() => expect(ata).toHaveBeenCalledWith('wo-101', expect.objectContaining({ atanan_kullanici_id: 5, beklenen_version: 1 })))
+    expect(await screen.findByText('aktif.user')).toBeInTheDocument()
+  })
+
+  it('atanmamış iş emrinde USER kontrollerini gizleyip nedenini açıklar', async () => {
+    vi.spyOn(authContext, 'useAuth').mockReturnValue({ kullanici: { id: 7, username: 'operator', rol: 'USER' }, yukleniyor: false, giris: vi.fn(), cikis: vi.fn() })
+    vi.spyOn(isEmirleriApi, 'isEmriDetayiGetir').mockResolvedValue({ ...MOCK_WO_DETAIL, durum: 'ACIK', atanan_kullanici: null })
+    render(<MemoryRouter initialEntries={['/app/is-emirleri/wo-101']}><Routes><Route path="/app/is-emirleri/:isEmriId" element={<IsEmriDetay />} /></Routes></MemoryRouter>)
+    expect(await screen.findByText(/henüz atanmadı. Atama yapıldıktan sonra/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Kullanıcı Ata|Yeniden Ata/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Durum Geçişi Yap' })).not.toBeInTheDocument()
   })
 })

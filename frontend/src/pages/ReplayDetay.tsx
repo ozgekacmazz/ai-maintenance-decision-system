@@ -310,21 +310,21 @@ export function ReplayDetay() {
         <MetricCard
           baslik="İşlenen Kayıt"
           deger={`${session.ilerleme.basarili + session.ilerleme.basarisiz} / ${session.toplam_oge}`}
-          aciklama={`Başarılı: ${session.ilerleme.basarili} — Hatalı: ${session.ilerleme.basarisiz}`}
+          aciklama={`Teknik olarak işlendi: ${session.ilerleme.basarili} — İşleme hatası: ${session.ilerleme.basarisiz}. Bu sayaçlar tahmin kalitesini ölçmez.`}
           varyant="varsayilan"
         />
 
         <MetricCard
           baslik="Precision"
-          deger={binaryMetrics ? yuzdeFormatla(binaryMetrics.precision) : 'Hesaplanamadı'}
-          aciklama="Arıza uyarılarının ne kadarının gerçek arıza olduğunu gösterir."
+          deger={binaryMetrics && binaryMetrics.predicted_positive > 0 ? yuzdeFormatla(binaryMetrics.precision) : 'Hesaplanamadı'}
+          aciklama={binaryMetrics?.predicted_positive === 0 ? 'Pozitif tahmin bulunmadığı için precision tanımsızdır.' : 'Arıza uyarılarının ne kadarının gerçek arıza olduğunu gösterir.'}
           varyant="varsayilan"
         />
 
         <MetricCard
           baslik="Recall"
-          deger={binaryMetrics ? yuzdeFormatla(binaryMetrics.recall) : 'Hesaplanamadı'}
-          aciklama="Gerçek arızaların ne kadarının yakalandığını gösterir."
+          deger={binaryMetrics && binaryMetrics.support > 0 ? yuzdeFormatla(binaryMetrics.recall) : 'Hesaplanamadı'}
+          aciklama={binaryMetrics?.support === 0 ? 'Pozitif gerçek örnek bulunmadığı için recall tanımsızdır.' : 'Gerçek arızaların ne kadarının yakalandığını gösterir.'}
           varyant="varsayilan"
         />
 
@@ -337,8 +337,8 @@ export function ReplayDetay() {
 
         <MetricCard
           baslik="F1-Skoru (Yardımcı)"
-          deger={binaryMetrics ? yuzdeFormatla(binaryMetrics.f1) : 'Hesaplanamadı'}
-          aciklama={binaryMetrics ? `Değerlendirilen öğe: ${session.metrikler.degerlendirilen_oge_sayisi}` : 'Nihai metrikler tamamlanan replay için gösterilir.'}
+          deger={binaryMetrics && binaryMetrics.support > 0 && binaryMetrics.predicted_positive > 0 ? yuzdeFormatla(binaryMetrics.f1) : 'Hesaplanamadı'}
+          aciklama={binaryMetrics && (binaryMetrics.support === 0 || binaryMetrics.predicted_positive === 0) ? 'Pozitif gerçek örnek veya pozitif tahmin olmadığı için F1 tanımsızdır.' : binaryMetrics ? `Değerlendirilen öğe: ${session.metrikler.degerlendirilen_oge_sayisi}` : 'Nihai metrikler tamamlanan replay için gösterilir.'}
           varyant="varsayilan"
         />
       </div>
@@ -458,7 +458,7 @@ export function ReplayDetay() {
                       )}
                     </td>
                     <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      {oge.islenme_zamani ? new Date(oge.islenme_zamani).toLocaleString('tr-TR') : '-'}
+                      {oge.tamamlanma_zamani ? new Date(oge.tamamlanma_zamani).toLocaleString('tr-TR') : '-'}
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       {oge.tahmin_kaydi_id ? (
